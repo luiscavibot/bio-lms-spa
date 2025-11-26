@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Mail, Lock } from 'lucide-react';
+import { BookOpen, Mail, Lock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -9,28 +9,25 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
-import { useAcademicStore } from '@/store/academicStoreNew';
+import { useAuthStore } from '@/store/authStore';
 
 export function Login() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
-	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
-	const setAuthenticated = useAcademicStore(
-		(state) => state.setAuthenticated
-	);
+	const { login, isLoading, error, clearError } = useAuthStore();
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setIsLoading(true);
+		clearError();
 
-		// Simular llamada a API (reemplazar con AWS Cognito)
-		setTimeout(() => {
-			// Mock login - acepta cualquier credencial
-			setAuthenticated(true);
-			setIsLoading(false);
+		try {
+			await login(email, password);
 			navigate('/');
-		}, 1000);
+		} catch (err) {
+			// Error is handled by the store
+			console.error('Login failed:', err);
+		}
 	};
 
 	return (
@@ -105,6 +102,14 @@ export function Login() {
 								¿Olvidaste tu contraseña?
 							</a>
 						</div>
+						{/* Error Message */}
+						{error && (
+							<div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+								<AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+								<p className="text-sm text-red-800">{error}</p>
+							</div>
+						)}
+
 						{/* Login Button */}
 						<Button
 							type="submit"
@@ -120,14 +125,7 @@ export function Login() {
 							) : (
 								'Iniciar Sesión'
 							)}
-						</Button>{' '}
-						{/* Info Message */}
-						<div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-							<p className="text-xs text-blue-800 text-center">
-								<strong>Demo:</strong> Ingresa cualquier correo
-								y contraseña para acceder
-							</p>
-						</div>
+						</Button>
 					</form>
 				</CardContent>
 			</Card>

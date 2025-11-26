@@ -1,15 +1,15 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Home, Library, User, LogOut } from 'lucide-react';
-import { useAcademicStore } from '@/store/academicStoreNew';
+import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 
 export function Layout() {
-	const currentUser = useAcademicStore((state) => state.currentUser);
-	const logout = useAcademicStore((state) => state.logout);
+	const user = useAuthStore((state) => state.user);
+	const logout = useAuthStore((state) => state.logout);
 	const navigate = useNavigate();
 
-	const handleLogout = () => {
-		logout();
+	const handleLogout = async () => {
+		await logout();
 		navigate('/login');
 	};
 
@@ -54,11 +54,10 @@ export function Layout() {
 							<div className="flex items-center space-x-2">
 								<div className="text-right hidden sm:block">
 									<p className="text-sm font-medium text-white">
-										{currentUser?.firstName}{' '}
-										{currentUser?.lastName}
+										{user?.firstName} {user?.lastName}
 									</p>
 									<p className="text-xs text-white/70">
-										{currentUser?.email}
+										{user?.email}
 									</p>
 								</div>
 								<div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">

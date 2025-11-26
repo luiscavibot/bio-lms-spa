@@ -1,13 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Dashboard } from '@/pages/Dashboard';
 import { Library } from '@/pages/Library';
 import { CourseDetail } from '@/pages/CourseDetail';
 import { Login } from '@/pages/Login';
 import { Layout } from '@/components/Layout';
-import { useAcademicStore } from '@/store/academicStoreNew';
+import { useAuthStore } from '@/store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-	const isAuthenticated = useAcademicStore((state) => state.isAuthenticated);
+	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
 	if (!isAuthenticated) {
 		return <Navigate to="/login" replace />;
@@ -17,6 +18,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function AppRouter() {
+	const checkAuth = useAuthStore((state) => state.checkAuth);
+
+	useEffect(() => {
+		// Verificar si hay una sesión activa de Cognito al iniciar la app
+		checkAuth();
+	}, [checkAuth]);
+
 	return (
 		<BrowserRouter>
 			<Routes>
