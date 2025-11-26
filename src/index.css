@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		/* Paleta BioRepo basada en #228665 (Verde Esmeralda) */
+		--background: 0 0% 100%;
+		--foreground: 160 25% 15%;
+
+		/* Cards con sutil tinte verde */
+		--card: 0 0% 100%;
+		--card-foreground: 160 20% 20%;
+
+		--popover: 0 0% 100%;
+		--popover-foreground: 160 20% 20%;
+
+		/* Primary: Verde Esmeralda #228665 */
+		--primary: 160 59% 33%;
+		--primary-foreground: 0 0% 100%;
+
+		/* Secondary: Verde menta suave */
+		--secondary: 160 40% 95%;
+		--secondary-foreground: 160 59% 33%;
+
+		/* Muted: Gris verdoso */
+		--muted: 160 20% 96%;
+		--muted-foreground: 160 10% 45%;
+
+		/* Accent: Verde brillante para destacados */
+		--accent: 160 65% 45%;
+		--accent-foreground: 0 0% 100%;
+
+		--destructive: 0 84% 60%;
+		--destructive-foreground: 0 0% 100%;
+
+		/* Bordes suaves */
+		--border: 160 15% 90%;
+		--input: 160 15% 90%;
+		--ring: 160 59% 33%;
+
+		--radius: 0.75rem;
+	}
+
+	.dark {
+		/* Modo oscuro con tonos verdes profundos */
+		--background: 160 25% 8%;
+		--foreground: 160 15% 95%;
+
+		--card: 160 20% 12%;
+		--card-foreground: 160 15% 95%;
+
+		--popover: 160 20% 12%;
+		--popover-foreground: 160 15% 95%;
+
+		/* Primary más brillante para modo oscuro */
+		--primary: 160 60% 45%;
+		--primary-foreground: 160 25% 8%;
+
+		--secondary: 160 25% 18%;
+		--secondary-foreground: 160 15% 95%;
+
+		--muted: 160 20% 15%;
+		--muted-foreground: 160 10% 65%;
+
+		--accent: 160 65% 50%;
+		--accent-foreground: 160 25% 8%;
+
+		--destructive: 0 70% 50%;
+		--destructive-foreground: 160 15% 95%;
+
+		--border: 160 20% 20%;
+		--input: 160 20% 20%;
+		--ring: 160 60% 45%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground;
+		font-feature-settings: 'rlig' 1, 'calt' 1;
+	}
+}
