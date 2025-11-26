@@ -38,18 +38,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 				const cognitoUser = await getCurrentUser();
 				const attributes = await fetchUserAttributes();
 
-			const user: User = {
-				userId: parseInt(cognitoUser.userId) || 1,
-				externalAuthId: cognitoUser.userId,
-				authProvider: 'AWS_COGNITO',
-				email: attributes.email || email,
-				firstName: attributes.given_name || '',
-				lastName: attributes.family_name || '',
-				roleId: 3, // Student by default
-				isActive: true,
-			};
+				const user: User = {
+					userId: parseInt(cognitoUser.userId) || 1,
+					externalAuthId: cognitoUser.userId,
+					authProvider: 'AWS_COGNITO',
+					email: attributes.email || email,
+					firstName: attributes.given_name || '',
+					lastName: attributes.family_name || '',
+					roleId: 3, // Student by default
+					isActive: true,
+				};
 
-			set({
+				set({
 					user,
 					isAuthenticated: true,
 					isLoading: false,
