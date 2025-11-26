@@ -20,9 +20,7 @@ import type {
 import {
 	mockFaculty,
 	mockPrograms,
-	mockCourses,
 	mockSemesters,
-	mockCourseOfferings,
 	mockBlocks,
 	mockCurrentUser,
 	getMyCourses,

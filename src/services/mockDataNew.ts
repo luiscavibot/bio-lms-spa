@@ -22,7 +22,6 @@ import type {
 } from '@/types/academic-new';
 import {
 	MaterialType,
-	UserRole,
 	BlockType,
 	AcademicLevel,
 	DegreeType,
