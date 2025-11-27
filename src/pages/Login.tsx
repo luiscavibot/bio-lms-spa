@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Mail, Lock, AlertCircle } from 'lucide-react';
+import { BookOpen, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -10,28 +10,53 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
+import { PasswordChangeModal } from '@/components/PasswordChangeModal';
 
 export function Login() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
 	const navigate = useNavigate();
-	const { login, isLoading, error, clearError } = useAuthStore();
+	const {
+		login,
+		confirmNewPassword,
+		isLoading,
+		error,
+		clearError,
+		needsPasswordChange,
+		isAuthenticated,
+	} = useAuthStore();
+
+	// Redirigir cuando el login sea exitoso
+	useEffect(() => {
+		if (isAuthenticated) {
+			navigate('/');
+		}
+	}, [isAuthenticated, navigate]);
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		clearError();
+		await login(email, password);
+		// La navegación se maneja automáticamente cuando isAuthenticated cambia
+		// o cuando needsPasswordChange se activa para mostrar el modal
+	};
 
-		try {
-			await login(email, password);
-			navigate('/');
-		} catch (err) {
-			// Error is handled by the store
-			console.error('Login failed:', err);
-		}
+	const handlePasswordChange = async (newPassword: string) => {
+		await confirmNewPassword(newPassword);
+		// La navegación se maneja automáticamente cuando isAuthenticated cambia
 	};
 
 	return (
 		<div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+			{/* Modal de cambio de contraseña */}
+			<PasswordChangeModal
+				isOpen={needsPasswordChange}
+				onConfirm={handlePasswordChange}
+				isLoading={isLoading}
+				error={error}
+			/>
+
 			<Card className="w-full max-w-md shadow-2xl border-primary/20">
 				<CardHeader className="space-y-4 text-center pb-8">
 					<div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
@@ -82,25 +107,39 @@ export function Login() {
 								<Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 								<input
 									id="password"
-									type="password"
+									type={showPassword ? 'text' : 'password'}
 									placeholder="••••••••"
 									value={password}
 									onChange={(e) =>
 										setPassword(e.target.value)
 									}
-									className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+									className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
 									required
 								/>
+								<button
+									type="button"
+									onClick={() =>
+										setShowPassword(!showPassword)
+									}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+								>
+									{showPassword ? (
+										<EyeOff className="h-4 w-4" />
+									) : (
+										<Eye className="h-4 w-4" />
+									)}
+								</button>
 							</div>
 						</div>
 						{/* Forgot Password Link */}
 						<div className="text-right">
-							<a
-								href="#"
+							<button
+								type="button"
+								onClick={() => navigate('/forgot-password')}
 								className="text-sm text-primary hover:underline"
 							>
 								¿Olvidaste tu contraseña?
-							</a>
+							</button>
 						</div>
 						{/* Error Message */}
 						{error && (

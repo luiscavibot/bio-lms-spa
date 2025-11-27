@@ -11,6 +11,23 @@ export const amplifyConfig = {
 		Cognito: {
 			userPoolId: cognitoConfig.userPoolId,
 			userPoolClientId: cognitoConfig.userPoolWebClientId,
+			loginWith: {
+				oauth: {
+					domain: cognitoConfig.userPoolId,
+					scopes: ['email', 'profile', 'openid'],
+					redirectSignIn: [window.location.origin],
+					redirectSignOut: [window.location.origin],
+					responseType: 'code',
+				},
+			},
 		},
+	},
+	// Configuración de almacenamiento con cookies HttpOnly
+	cookieStorage: {
+		domain: window.location.hostname,
+		path: '/',
+		expires: 7, // 7 días
+		sameSite: 'strict',
+		secure: window.location.protocol === 'https:', // true en producción con HTTPS
 	},
 };
