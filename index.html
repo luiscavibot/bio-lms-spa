@@ -14,7 +14,7 @@
 				style-src 'self' 'unsafe-inline';
 				img-src 'self' data: https:;
 				font-src 'self' data:;
-				connect-src 'self' https://cognito-idp.us-east-2.amazonaws.com https://*.amazonaws.com;
+				connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 https://cognito-idp.us-east-2.amazonaws.com https://*.amazonaws.com ws:;
 				frame-ancestors 'none';
 				base-uri 'self';
 				form-action 'self';

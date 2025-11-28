@@ -31,9 +31,9 @@ class HttpClient {
 	}
 
 	private async handleResponse(response: Response) {
-		// Si el token expiró o es inválido
+		// Si el token expiró o es inválido (401 - No autorizado)
 		if (response.status === 401) {
-			console.error('🔒 Token inválido o expirado');
+			console.error('🔒 Token inválido o expirado (401)');
 
 			// Intentar renovar la sesión
 			const checkAuth = useAuthStore.getState().checkAuth;
@@ -42,13 +42,30 @@ class HttpClient {
 			// Si después de checkAuth sigue sin token, logout
 			const tokens = useAuthStore.getState().tokens;
 			if (!tokens?.accessToken) {
+				console.log(
+					'❌ No se pudo renovar la sesión, limpiando estado...'
+				);
 				const logout = useAuthStore.getState().logout;
 				await logout();
+
+				// Limpiar localStorage/sessionStorage
+				localStorage.clear();
+				sessionStorage.clear();
+
+				// Redirigir a login
 				window.location.href = '/login';
 				throw new Error(
 					'Sesión expirada. Por favor, inicia sesión nuevamente.'
 				);
 			}
+		}
+
+		// Si no tiene permisos (403 - Forbidden)
+		if (response.status === 403) {
+			console.error(
+				'🚫 No tienes permisos para realizar esta acción (403)'
+			);
+			throw new Error('No tienes permisos para realizar esta acción');
 		}
 
 		if (!response.ok) {
@@ -71,7 +88,10 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
-		const response = await fetch(`${this.baseURL}${url}`, {
+		const fullUrl = `${this.baseURL}${url}`;
+		console.log('🌐 HTTP GET:', { url: fullUrl, requiresAuth });
+
+		const response = await fetch(fullUrl, {
 			method: 'GET',
 			headers,
 			...restConfig,

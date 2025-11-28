@@ -1,12 +1,24 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Home, Library, User, LogOut } from 'lucide-react';
+import { BookOpen, Home, Library, Settings, User, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useHasRole } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
+import { DebugPermissions } from '@/components/DebugPermissions';
 
 export function Layout() {
 	const user = useAuthStore((state) => state.user);
+	const backendUser = useAuthStore((state) => state.backendUser);
 	const logout = useAuthStore((state) => state.logout);
 	const navigate = useNavigate();
+	const isAdmin = useHasRole('Admin');
+
+	// Debug: Verificar información del usuario y rol
+	console.log('🔍 Layout Debug:', {
+		user,
+		backendUser,
+		userRole: backendUser?.role?.roleName,
+		isAdmin,
+	});
 
 	const handleLogout = async () => {
 		await logout();
@@ -32,7 +44,6 @@ export function Layout() {
 								</p>
 							</div>
 						</div>
-
 						<nav className="hidden md:flex items-center space-x-2">
 							<Link
 								to="/"
@@ -48,8 +59,16 @@ export function Layout() {
 								<Library className="h-4 w-4" />
 								<span>Biblioteca</span>
 							</Link>
-						</nav>
-
+							{isAdmin && (
+								<Link
+									to="/maintenance"
+									className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+								>
+									<Settings className="h-4 w-4" />
+									<span>Mantenimiento</span>
+								</Link>
+							)}
+						</nav>{' '}
 						<div className="flex items-center space-x-4">
 							<div className="flex items-center space-x-2">
 								<div className="text-right hidden sm:block">
@@ -90,6 +109,9 @@ export function Layout() {
 					</p>
 				</div>
 			</footer>
+
+			{/* Debug Panel - REMOVER DESPUÉS DE RESOLVER */}
+			<DebugPermissions />
 		</div>
 	);
 }

@@ -20,6 +20,7 @@ export function Login() {
 	const {
 		login,
 		confirmNewPassword,
+		fetchUserPermissions,
 		isLoading,
 		error,
 		clearError,
@@ -27,9 +28,10 @@ export function Login() {
 		isAuthenticated,
 	} = useAuthStore();
 
-	// Redirigir cuando el login sea exitoso
+	// Redirigir cuando el login sea exitoso (sin bloquear por permisos)
 	useEffect(() => {
 		if (isAuthenticated) {
+			console.log('✅ Usuario autenticado, redirigiendo...');
 			navigate('/');
 		}
 	}, [isAuthenticated, navigate]);
@@ -37,9 +39,24 @@ export function Login() {
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		clearError();
+
+		// Si ya está autenticado, no intentar signIn de nuevo
+		if (isAuthenticated) {
+			console.log(
+				'ℹ️ Usuario ya autenticado, refrescando permisos y navegando'
+			);
+			await fetchUserPermissions();
+			return;
+		}
+
+		console.log('🔐 Intentando login...');
 		await login(email, password);
+
+		// Obtener permisos del backend DESPUÉS del login exitoso
+		console.log('📡 Obteniendo permisos del usuario...');
+		await fetchUserPermissions();
+		console.log('✅ Permisos obtenidos, redirigiendo...');
 		// La navegación se maneja automáticamente cuando isAuthenticated cambia
-		// o cuando needsPasswordChange se activa para mostrar el modal
 	};
 
 	const handlePasswordChange = async (newPassword: string) => {
@@ -153,7 +170,7 @@ export function Login() {
 						<Button
 							type="submit"
 							className="w-full"
-							disabled={isLoading}
+							disabled={isLoading || isAuthenticated}
 						>
 							{isLoading ? (
 								<div className="flex items-center justify-center gap-1">

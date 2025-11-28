@@ -1,25 +1,16 @@
 import {
 	FileText,
-	Video,
-	Presentation,
-	File,
 	Link as LinkIcon,
 	FileQuestion,
 	type LucideIcon,
 } from 'lucide-react';
-import type { MaterialType } from '@/types/academic';
+import type { MaterialTypeValue } from '@/types/academic-new';
 
-export function getMaterialIcon(type: MaterialType): LucideIcon {
+export function getMaterialIcon(type: MaterialTypeValue): LucideIcon {
 	switch (type) {
-		case 'pdf':
+		case 'FILE':
 			return FileText;
-		case 'video':
-			return Video;
-		case 'presentation':
-			return Presentation;
-		case 'document':
-			return File;
-		case 'link':
+		case 'LINK':
 			return LinkIcon;
 		default:
 			return FileQuestion;

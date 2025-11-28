@@ -8,6 +8,10 @@ import {
 	fetchAuthSession,
 } from 'aws-amplify/auth';
 import type { User } from '@/types/academic-new';
+import type { User as BackendUser } from '@/types/permissions';
+import type { AppAbility } from '@/lib/abilityBuilder';
+import { buildAbilityFrom, createEmptyAbility } from '@/lib/abilityBuilder';
+import { authService } from '@/services/authService';
 
 interface AuthTokens {
 	accessToken: string;
@@ -17,6 +21,8 @@ interface AuthTokens {
 
 interface AuthState {
 	user: User | null;
+	backendUser: BackendUser | null; // Usuario con información de roles del backend
+	ability: AppAbility; // Permisos CASL
 	tokens: AuthTokens | null;
 	isAuthenticated: boolean;
 	isLoading: boolean;
@@ -31,10 +37,13 @@ interface AuthState {
 	checkAuth: () => Promise<void>;
 	clearError: () => void;
 	getAccessToken: () => string | null;
+	fetchUserPermissions: () => Promise<void>; // Obtener usuario y permisos del backend
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
 	user: null,
+	backendUser: null,
+	ability: createEmptyAbility(),
 	tokens: null,
 	isAuthenticated: false,
 	isLoading: true,
@@ -288,5 +297,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	getAccessToken: () => {
 		const state = get();
 		return state.tokens?.accessToken || null;
+	},
+
+	fetchUserPermissions: async () => {
+		try {
+			console.log('📡 Obteniendo usuario y permisos del backend...');
+			console.log('🔍 Estado actual tokens:', get().tokens);
+
+			const response = await authService.getMe();
+			console.log('📦 Respuesta completa del backend:', response);
+
+			const { user: backendUser, abilities } = response;
+
+			console.log('✅ Usuario del backend:', backendUser);
+			console.log('🔐 Permisos recibidos:', abilities);
+
+			// Construir ability desde las reglas del backend
+			const ability = buildAbilityFrom(abilities);
+
+			set({
+				backendUser,
+				ability,
+			});
+
+			console.log('✅ Permisos configurados correctamente');
+			console.log('🔍 Estado después de set:', {
+				backendUser: get().backendUser,
+				ability: get().ability.rules,
+			});
+		} catch (error: any) {
+			console.error('❌ Error al obtener permisos:', error);
+			console.error('❌ Detalle del error:', {
+				message: error.message,
+				status: error.status,
+				response: error.response,
+			});
+
+			// Si es 401, limpiar sesión y redirigir a login
+			if (error.message?.includes('401')) {
+				console.log('🔒 Token expirado, limpiando sesión...');
+				await get().logout();
+				return;
+			}
+
+			// Para otros errores, mantener ability vacío
+			set({
+				backendUser: null,
+				ability: createEmptyAbility(),
+			});
+		}
 	},
 }));

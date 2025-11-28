@@ -17,7 +17,7 @@ export const amplifyConfig = {
 					scopes: ['email', 'profile', 'openid'],
 					redirectSignIn: [window.location.origin],
 					redirectSignOut: [window.location.origin],
-					responseType: 'code',
+					responseType: 'code' as const,
 				},
 			},
 		},

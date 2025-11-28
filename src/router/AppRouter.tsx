@@ -5,6 +5,8 @@ import { Library } from '@/pages/Library';
 import { CourseDetail } from '@/pages/CourseDetail';
 import { Login } from '@/pages/Login';
 import { ForgotPassword } from '@/pages/ForgotPassword';
+import { Unauthorized } from '@/pages/Unauthorized';
+import { Maintenance } from '@/pages/Maintenance';
 import { Layout } from '@/components/Layout';
 import { useAuthStore } from '@/store/authStore';
 
@@ -36,11 +38,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export function AppRouter() {
 	const checkAuth = useAuthStore((state) => state.checkAuth);
+	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+	const tokens = useAuthStore((state) => state.tokens);
+	const backendUser = useAuthStore((state) => state.backendUser);
+	const fetchUserPermissions = useAuthStore(
+		(state) => state.fetchUserPermissions
+	);
 
 	useEffect(() => {
 		// Verificar si hay una sesión activa de Cognito al iniciar la app
 		checkAuth();
 	}, [checkAuth]);
+
+	useEffect(() => {
+		// Si ya está autenticado y hay token, cargar permisos si no existen
+		if (isAuthenticated && tokens?.accessToken && !backendUser) {
+			console.log('📡 Cargando permisos tras checkAuth...');
+			fetchUserPermissions();
+		}
+	}, [isAuthenticated, tokens, backendUser, fetchUserPermissions]);
 
 	return (
 		<BrowserRouter>
@@ -48,6 +64,7 @@ export function AppRouter() {
 				{/* Rutas públicas */}
 				<Route path="/login" element={<Login />} />
 				<Route path="/forgot-password" element={<ForgotPassword />} />
+				<Route path="/unauthorized" element={<Unauthorized />} />
 
 				{/* Rutas protegidas */}
 				<Route element={<Layout />}>
@@ -80,6 +97,14 @@ export function AppRouter() {
 						element={
 							<ProtectedRoute>
 								<CourseDetail />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/maintenance"
+						element={
+							<ProtectedRoute>
+								<Maintenance />
 							</ProtectedRoute>
 						}
 					/>
