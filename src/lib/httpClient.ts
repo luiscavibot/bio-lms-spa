@@ -18,16 +18,25 @@ class HttpClient {
 
 	private async getAuthHeaders(): Promise<HeadersInit> {
 		const tokens = useAuthStore.getState().tokens;
-		const accessToken = tokens?.accessToken;
+		// Backend valida exclusivamente el accessToken (Cognito Access Token)
+		const bearerToken = tokens?.accessToken;
 
-		if (!accessToken) {
+		if (!bearerToken) {
 			throw new Error('No hay token de autenticación disponible');
 		}
 
-		return {
-			Authorization: `Bearer ${accessToken}`,
+		const headers = {
+			Authorization: `Bearer ${bearerToken}`,
 			'Content-Type': 'application/json',
 		};
+
+		// Log para trazabilidad del tipo de token
+		console.log('🔑 Auth headers preparados', {
+			usesAccessToken: !!tokens?.accessToken,
+			usesIdToken: false,
+		});
+
+		return headers;
 	}
 
 	private async handleResponse(response: Response) {

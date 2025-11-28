@@ -1,9 +1,8 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Home, Library, Settings, User, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { useHasRole } from '@/hooks/usePermissions';
+import { useHasRole, useCan } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
-import { DebugPermissions } from '@/components/DebugPermissions';
 
 export function Layout() {
 	const user = useAuthStore((state) => state.user);
@@ -11,6 +10,8 @@ export function Layout() {
 	const logout = useAuthStore((state) => state.logout);
 	const navigate = useNavigate();
 	const isAdmin = useHasRole('Admin');
+	const canManageAll = useCan('manage', 'all');
+	const canSeeMaintenance = isAdmin || canManageAll;
 
 	// Debug: Verificar información del usuario y rol
 	console.log('🔍 Layout Debug:', {
@@ -59,7 +60,7 @@ export function Layout() {
 								<Library className="h-4 w-4" />
 								<span>Biblioteca</span>
 							</Link>
-							{isAdmin && (
+							{canSeeMaintenance && (
 								<Link
 									to="/maintenance"
 									className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
@@ -110,8 +111,7 @@ export function Layout() {
 				</div>
 			</footer>
 
-			{/* Debug Panel - REMOVER DESPUÉS DE RESOLVER */}
-			<DebugPermissions />
+			{/* Debug Panel desactivado */}
 		</div>
 	);
 }

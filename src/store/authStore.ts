@@ -307,18 +307,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			const response = await authService.getMe();
 			console.log('📦 Respuesta completa del backend:', response);
 
-			const { user: backendUser, abilities } = response;
+			// El backend puede devolver { user, abilities } o un objeto usuario plano con abilities.
+			// Normalizamos ambas formas aquí.
+			const rawUser: any = (response as any).user ?? response;
+			let abilities =
+				(response as any).abilities ?? rawUser?.abilities ?? [];
 
-			console.log('✅ Usuario del backend:', backendUser);
+			// Mapear shape de rol { id, roleName } -> { roleId, roleName }
+			const normalizedRole = rawUser?.role
+				? {
+						roleId:
+							(rawUser.role.roleId as number) ??
+							(rawUser.role.id as number),
+						roleName: rawUser.role.roleName,
+				  }
+				: undefined;
+
+			const backendUser = rawUser
+				? {
+						userId: rawUser.userId,
+						email: rawUser.email,
+						firstName: rawUser.firstName ?? '',
+						lastName: rawUser.lastName ?? '',
+						cognitoId:
+							(rawUser.cognitoId as string) ??
+							(rawUser.externalAuthId as string),
+						role:
+							normalizedRole ??
+							({ roleId: 0, roleName: 'Student' } as any),
+						createdAt: rawUser.createdAt,
+						updatedAt: rawUser.updatedAt,
+				  }
+				: null;
+
+			console.log('✅ Usuario normalizado del backend:', backendUser);
 			console.log('🔐 Permisos recibidos:', abilities);
 
 			// Construir ability desde las reglas del backend
 			const ability = buildAbilityFrom(abilities);
 
-			set({
-				backendUser,
-				ability,
-			});
+			set({ backendUser, ability });
 
 			console.log('✅ Permisos configurados correctamente');
 			console.log('🔍 Estado después de set:', {

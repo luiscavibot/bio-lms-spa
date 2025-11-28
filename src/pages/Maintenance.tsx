@@ -4,6 +4,8 @@
  */
 
 import { useState } from 'react';
+import { useHasRole, useCan } from '@/hooks/usePermissions';
+import { Unauthorized } from '@/pages/Unauthorized';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { BookOpen, Calendar, Users, GraduationCap } from 'lucide-react';
@@ -14,6 +16,14 @@ import { TeachersManagement } from '@/components/maintenance/TeachersManagement'
 
 export function Maintenance() {
 	const [activeTab, setActiveTab] = useState('courses');
+
+	const isAdmin = useHasRole('Admin');
+	const canManageAll = useCan('manage', 'all');
+	const canAccess = isAdmin || canManageAll;
+
+	if (!canAccess) {
+		return <Unauthorized />;
+	}
 
 	return (
 		<div className="space-y-6">
