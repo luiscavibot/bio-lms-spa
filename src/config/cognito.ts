@@ -1,33 +1,24 @@
-// AWS Cognito Configuration
 export const cognitoConfig = {
-	region: 'us-east-2',
-	userPoolId: 'us-east-2_fdNDmpEOG',
-	userPoolWebClientId: 'n72i8eg8rj7vmqam5h4npi3f0',
-	issuer: 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_fdNDmpEOG',
+	region: import.meta.env.VITE_AWS_REGION,
+	userPoolId: import.meta.env.VITE_AWS_USER_POOL_ID,
+	userPoolClientId: import.meta.env.VITE_AWS_USER_POOL_CLIENT_ID,
 };
 
 export const amplifyConfig = {
 	Auth: {
 		Cognito: {
 			userPoolId: cognitoConfig.userPoolId,
-			userPoolClientId: cognitoConfig.userPoolWebClientId,
-			loginWith: {
-				oauth: {
-					domain: cognitoConfig.userPoolId,
-					scopes: ['email', 'profile', 'openid'],
-					redirectSignIn: [window.location.origin],
-					redirectSignOut: [window.location.origin],
-					responseType: 'code' as const,
-				},
-			},
+			userPoolClientId: cognitoConfig.userPoolClientId,
 		},
 	},
-	// Configuración de almacenamiento con cookies HttpOnly
-	cookieStorage: {
-		domain: window.location.hostname,
-		path: '/',
-		expires: 7, // 7 días
-		sameSite: 'strict',
-		secure: window.location.protocol === 'https:', // true en producción con HTTPS
-	},
+};
+
+// Configuración de cookies para almacenamiento de tokens
+// Nota: En Amplify v6 esto debe configurarse por separado (ver main.tsx)
+export const cookieStorageConfig = {
+	domain: window.location.hostname,
+	path: '/',
+	expires: 30, // días
+	sameSite: 'lax' as const, // 'lax' es más compatible que 'strict'
+	secure: window.location.protocol === 'https:',
 };
