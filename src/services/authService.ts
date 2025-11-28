@@ -15,7 +15,10 @@ import type { AuthMeResponse } from '@/types/permissions';
  */
 export async function getUserWithPermissions(): Promise<AuthMeResponse> {
 	try {
-		const response = await httpClient.get<AuthMeResponse>('/auth/me');
+		// Backend: GET /api/v1/auth/me
+		const response = await httpClient.get<AuthMeResponse>(
+			'/api/v1/auth/me'
+		);
 		return response;
 	} catch (error) {
 		console.error('❌ Error al obtener usuario y permisos:', error);

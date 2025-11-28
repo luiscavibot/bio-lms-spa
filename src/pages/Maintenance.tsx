@@ -6,16 +6,24 @@
 import { useState } from 'react';
 import { useHasRole, useCan } from '@/hooks/usePermissions';
 import { Unauthorized } from '@/pages/Unauthorized';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { BookOpen, Calendar, Users, GraduationCap } from 'lucide-react';
+import { BookOpen, Calendar, Users, GraduationCap, Layers } from 'lucide-react';
 import { CoursesManagement } from '@/components/maintenance/CoursesManagement';
 import { SemestersManagement } from '@/components/maintenance/SemestersManagement';
 import { EnrollmentsManagement } from '@/components/maintenance/EnrollmentsManagement';
 import { TeachersManagement } from '@/components/maintenance/TeachersManagement';
+import { ProgramsManagement } from '@/components/maintenance/ProgramsManagement';
+
+type MaintenanceSection =
+	| 'programs'
+	| 'courses'
+	| 'semesters'
+	| 'enrollments'
+	| 'teachers';
 
 export function Maintenance() {
-	const [activeTab, setActiveTab] = useState('courses');
+	const [activeSection, setActiveSection] =
+		useState<MaintenanceSection>('programs');
 
 	const isAdmin = useHasRole('Admin');
 	const canManageAll = useCan('manage', 'all');
@@ -30,65 +38,89 @@ export function Maintenance() {
 			{/* Header */}
 			<div className="bg-primary/10 -mx-4 px-4 py-8 rounded-2xl border border-primary/20">
 				<h1 className="text-4xl font-bold text-primary mb-2">
-					Mantenimiento del Sistema
+					Configuración del Sistema
 				</h1>
 				<p className="text-muted-foreground text-lg">
-					Gestión completa de cursos, semestres, matrículas y
+					Administra programas, cursos, semestres, matrículas y
 					profesores
 				</p>
 			</div>
 
-			{/* Tabs de Gestión */}
-			<Card className="p-6">
-				<Tabs value={activeTab} onValueChange={setActiveTab}>
-					<TabsList className="grid w-full grid-cols-4 mb-6">
-						<TabsTrigger
-							value="courses"
-							className="flex items-center gap-2"
-						>
-							<BookOpen className="w-4 h-4" />
-							Cursos
-						</TabsTrigger>
-						<TabsTrigger
-							value="semesters"
-							className="flex items-center gap-2"
-						>
-							<Calendar className="w-4 h-4" />
-							Semestres
-						</TabsTrigger>
-						<TabsTrigger
-							value="enrollments"
-							className="flex items-center gap-2"
-						>
-							<GraduationCap className="w-4 h-4" />
-							Matrículas
-						</TabsTrigger>
-						<TabsTrigger
-							value="teachers"
-							className="flex items-center gap-2"
-						>
-							<Users className="w-4 h-4" />
-							Profesores
-						</TabsTrigger>
-					</TabsList>
+			{/* Layout con Sidebar */}
+			<div className="grid grid-cols-12 gap-6">
+				{/* Sidebar */}
+				<aside className="col-span-12 md:col-span-3">
+					<Card className="p-4 sticky top-24">
+						<nav className="space-y-1">
+							<button
+								className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+									activeSection === 'programs'
+										? 'bg-primary/10 text-primary'
+										: 'hover:bg-muted'
+								}`}
+								onClick={() => setActiveSection('programs')}
+							>
+								<Layers className="w-4 h-4" /> Programas
+							</button>
+							<button
+								className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+									activeSection === 'courses'
+										? 'bg-primary/10 text-primary'
+										: 'hover:bg-muted'
+								}`}
+								onClick={() => setActiveSection('courses')}
+							>
+								<BookOpen className="w-4 h-4" /> Cursos
+							</button>
+							<button
+								className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+									activeSection === 'semesters'
+										? 'bg-primary/10 text-primary'
+										: 'hover:bg-muted'
+								}`}
+								onClick={() => setActiveSection('semesters')}
+							>
+								<Calendar className="w-4 h-4" /> Semestres
+							</button>
+							<button
+								className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+									activeSection === 'enrollments'
+										? 'bg-primary/10 text-primary'
+										: 'hover:bg-muted'
+								}`}
+								onClick={() => setActiveSection('enrollments')}
+							>
+								<GraduationCap className="w-4 h-4" /> Matrículas
+							</button>
+							<button
+								className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+									activeSection === 'teachers'
+										? 'bg-primary/10 text-primary'
+										: 'hover:bg-muted'
+								}`}
+								onClick={() => setActiveSection('teachers')}
+							>
+								<Users className="w-4 h-4" /> Profesores
+							</button>
+						</nav>
+					</Card>
+				</aside>
 
-					<TabsContent value="courses" className="space-y-4">
-						<CoursesManagement />
-					</TabsContent>
-
-					<TabsContent value="semesters" className="space-y-4">
-						<SemestersManagement />
-					</TabsContent>
-
-					<TabsContent value="enrollments" className="space-y-4">
-						<EnrollmentsManagement />
-					</TabsContent>
-
-					<TabsContent value="teachers" className="space-y-4">
-						<TeachersManagement />
-					</TabsContent>
-				</Tabs>
-			</Card>
+				{/* Contenido principal */}
+				<section className="col-span-12 md:col-span-9">
+					<Card className="p-6">
+						{activeSection === 'programs' && <ProgramsManagement />}
+						{activeSection === 'courses' && <CoursesManagement />}
+						{activeSection === 'semesters' && (
+							<SemestersManagement />
+						)}
+						{activeSection === 'enrollments' && (
+							<EnrollmentsManagement />
+						)}
+						{activeSection === 'teachers' && <TeachersManagement />}
+					</Card>
+				</section>
+			</div>
 		</div>
 	);
 }

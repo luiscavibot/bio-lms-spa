@@ -16,6 +16,27 @@ class HttpClient {
 		this.baseURL = baseURL;
 	}
 
+	private resolveUrl(path: string): string {
+		// Si el path es absoluto, retornarlo tal cual
+		if (/^https?:\/\//.test(path)) {
+			return path;
+		}
+
+		const base = this.baseURL.replace(/\/$/, ''); // sin barra final
+		const p = path.startsWith('/') ? path : `/${path}`;
+
+		// Evitar duplicar /api/v1 si ya está en base y también en path
+		const apiPrefix = '/api/v1';
+		const baseEndsWithApi = base.endsWith(apiPrefix);
+		const pathStartsWithApi = p.startsWith(apiPrefix);
+
+		if (baseEndsWithApi && pathStartsWithApi) {
+			return `${base}${p.substring(apiPrefix.length)}`;
+		}
+
+		return `${base}${p}`;
+	}
+
 	private async getAuthHeaders(): Promise<HeadersInit> {
 		const tokens = useAuthStore.getState().tokens;
 		// Backend valida exclusivamente el accessToken (Cognito Access Token)
@@ -97,7 +118,7 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
-		const fullUrl = `${this.baseURL}${url}`;
+		const fullUrl = this.resolveUrl(url);
 		console.log('🌐 HTTP GET:', { url: fullUrl, requiresAuth });
 
 		const response = await fetch(fullUrl, {
@@ -120,7 +141,7 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
-		const response = await fetch(`${this.baseURL}${url}`, {
+		const response = await fetch(this.resolveUrl(url), {
 			method: 'POST',
 			headers,
 			body: JSON.stringify(data),
@@ -141,7 +162,7 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
-		const response = await fetch(`${this.baseURL}${url}`, {
+		const response = await fetch(this.resolveUrl(url), {
 			method: 'PUT',
 			headers,
 			body: JSON.stringify(data),
@@ -158,7 +179,7 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
-		const response = await fetch(`${this.baseURL}${url}`, {
+		const response = await fetch(this.resolveUrl(url), {
 			method: 'DELETE',
 			headers,
 			...restConfig,
@@ -188,7 +209,7 @@ class HttpClient {
 			? { Authorization: `Bearer ${accessToken}` }
 			: {};
 
-		const response = await fetch(`${this.baseURL}${url}`, {
+		const response = await fetch(this.resolveUrl(url), {
 			method: 'POST',
 			headers,
 			body: formData,
@@ -200,8 +221,10 @@ class HttpClient {
 }
 
 // Instancia por defecto (ajusta la baseURL según tu API backend)
+// Nota: VITE_API_URL debe ser la raíz del backend (ej. http://localhost:3000)
+// y los servicios deben incluir el path completo (ej. /api/v1/...)
 export const httpClient = new HttpClient(
-	import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+	import.meta.env.VITE_API_URL || 'http://localhost:3000'
 );
 
 // Hook para usar en componentes React

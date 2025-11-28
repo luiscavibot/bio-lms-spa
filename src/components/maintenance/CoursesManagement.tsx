@@ -79,8 +79,10 @@ export function CoursesManagement() {
 				courseService.getAll(),
 				courseService.getPrograms(),
 			]);
-			setCourses(coursesData.courses);
-			setPrograms(programsData.programs);
+			console.log('📘 Cursos recibidos:', coursesData);
+			console.log('🎓 Programas recibidos:', programsData);
+			setCourses(coursesData.courses || []);
+			setPrograms(programsData.programs || []);
 		} catch (error) {
 			console.error('Error al cargar cursos:', error);
 			alert('Error al cargar los datos. Por favor, intenta de nuevo.');
@@ -100,11 +102,12 @@ export function CoursesManagement() {
 			});
 		} else {
 			setEditingCourse(null);
+			// Preseleccionar el primer programa disponible si existe
 			setFormData({
 				courseCode: '',
 				courseName: '',
 				credits: 3,
-				programId: 1,
+				programId: programs[0]?.programId ?? 0,
 			});
 		}
 		setDialogOpen(true);
