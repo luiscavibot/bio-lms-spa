@@ -33,8 +33,8 @@ interface ProgramForm {
 	programName: string;
 	programCode: string;
 	facultyId: number;
-	academicLevel?: string;
-	degreeType?: string;
+	academicLevel?: 'UNDERGRADUATE' | 'POSTGRADUATE';
+	degreeType?: 'BACHELOR' | 'MASTER' | 'DOCTORATE' | 'DIPLOMA';
 	isActive?: boolean;
 }
 
@@ -46,6 +46,11 @@ export function ProgramsManagement() {
 	const [faculties, setFaculties] = useState<FacultyDto[]>([]);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [editing, setEditing] = useState<ProgramDto | null>(null);
+	const [saving, setSaving] = useState(false);
+	const [notification, setNotification] = useState<{
+		type: 'success' | 'error' | 'warning';
+		message: string;
+	} | null>(null);
 	const [form, setForm] = useState<ProgramForm>({
 		programName: '',
 		programCode: '',
@@ -78,15 +83,30 @@ export function ProgramsManagement() {
 		}
 	}, [search, programs]);
 
+	useEffect(() => {
+		if (notification) {
+			const timer = setTimeout(() => {
+				setNotification(null);
+			}, 5000);
+			return () => clearTimeout(timer);
+		}
+	}, [notification]);
+
+	const showNotification = (
+		type: 'success' | 'error' | 'warning',
+		message: string
+	) => {
+		setNotification({ type, message });
+	};
+
 	const loadPrograms = async () => {
 		setLoading(true);
 		try {
 			const resp = await programsService.getAll();
-			console.log('🎓 Programas (list):', resp);
 			setPrograms(resp.programs || []);
 		} catch (err) {
 			console.error('Error al cargar programas:', err);
-			alert('Error al cargar los programas. Intenta de nuevo.');
+			showNotification('error', 'Error al cargar los programas');
 		} finally {
 			setLoading(false);
 		}
@@ -95,13 +115,12 @@ export function ProgramsManagement() {
 	const loadFaculties = async () => {
 		try {
 			const resp = await facultiesService.getAll();
-			console.log('🏫 Facultades (list):', resp);
 			setFaculties(resp.faculties || []);
 		} catch (err) {
 			console.error('Error al cargar facultades:', err);
+			showNotification('error', 'Error al cargar las facultades');
 		}
 	};
-
 	const handleOpenDialog = (program?: ProgramDto) => {
 		if (program) {
 			setEditing(program);
@@ -128,6 +147,21 @@ export function ProgramsManagement() {
 	};
 
 	const handleSave = async () => {
+		// Validaciones
+		if (!form.programName.trim()) {
+			showNotification('warning', 'El nombre del programa es requerido');
+			return;
+		}
+		if (!form.programCode.trim()) {
+			showNotification('warning', 'El código del programa es requerido');
+			return;
+		}
+		if (!form.facultyId || form.facultyId === 0) {
+			showNotification('warning', 'Debes seleccionar una facultad');
+			return;
+		}
+
+		setSaving(true);
 		try {
 			if (editing) {
 				const data: UpdateProgramDto = {
@@ -139,6 +173,10 @@ export function ProgramsManagement() {
 					isActive: form.isActive,
 				};
 				await programsService.update(editing.programId, data);
+				showNotification(
+					'success',
+					'Programa actualizado exitosamente'
+				);
 			} else {
 				const data: CreateProgramDto = {
 					programName: form.programName,
@@ -147,16 +185,36 @@ export function ProgramsManagement() {
 					academicLevel: form.academicLevel!,
 					degreeType: form.degreeType!,
 				};
+				console.log(
+					'📤 Datos que se enviarán al backend:',
+					JSON.stringify(data, null, 2)
+				);
+				console.log('📤 Tipo de cada campo:', {
+					programName: typeof data.programName,
+					programCode: typeof data.programCode,
+					facultyId: typeof data.facultyId,
+					academicLevel: typeof data.academicLevel,
+					degreeType: typeof data.degreeType,
+				});
 				await programsService.create(data);
+				showNotification('success', 'Programa creado exitosamente');
 			}
 			setDialogOpen(false);
-			loadPrograms();
-		} catch (err) {
+			await loadPrograms();
+		} catch (err: any) {
 			console.error('Error al guardar programa:', err);
-			alert('Error al guardar el programa. Verifica los datos.');
+			let errorMessage = 'Error al guardar el programa';
+			if (err.message) {
+				errorMessage = err.message;
+			}
+			if (err.response?.message) {
+				errorMessage = err.response.message;
+			}
+			showNotification('error', errorMessage);
+		} finally {
+			setSaving(false);
 		}
 	};
-
 	const handleDelete = async (programId: number) => {
 		if (!confirm('¿Eliminar este programa?')) return;
 		try {
@@ -170,6 +228,36 @@ export function ProgramsManagement() {
 
 	return (
 		<div className="space-y-4">
+			{/* Notificación */}
+			{notification && (
+				<div
+					className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md animate-in slide-in-from-top-5 ${
+						notification.type === 'success'
+							? 'bg-green-50 text-green-900 border border-green-200'
+							: notification.type === 'error'
+							? 'bg-red-50 text-red-900 border border-red-200'
+							: 'bg-yellow-50 text-yellow-900 border border-yellow-200'
+					}`}
+				>
+					<div className="flex items-start gap-3">
+						<div className="flex-1">
+							<p className="font-medium">
+								{notification.type === 'success' && '✓ '}
+								{notification.type === 'error' && '✕ '}
+								{notification.type === 'warning' && '⚠ '}
+								{notification.message}
+							</p>
+						</div>
+						<button
+							onClick={() => setNotification(null)}
+							className="text-current opacity-70 hover:opacity-100"
+						>
+							×
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* Toolbar */}
 			<div className="flex items-center justify-between gap-4">
 				<div className="relative flex-1 max-w-sm">
@@ -345,32 +433,52 @@ export function ProgramsManagement() {
 
 						<div className="space-y-2">
 							<label className="text-sm font-medium">
-								Facultad
+								Facultad{' '}
+								{form.facultyId > 0 && (
+									<span className="text-xs text-muted-foreground">
+										(ID: {form.facultyId})
+									</span>
+								)}
 							</label>
 							<Select
-								value={String(form.facultyId || '')}
-								onValueChange={(val) =>
-									setForm({ ...form, facultyId: Number(val) })
+								key={`faculty-${dialogOpen}-${form.facultyId}`}
+								value={
+									form.facultyId > 0
+										? String(form.facultyId)
+										: undefined
 								}
+								onValueChange={(val) => {
+									if (!val || val === 'undefined') {
+										return;
+									}
+									const facultyId = parseInt(val, 10);
+									if (!isNaN(facultyId) && facultyId > 0) {
+										setForm({ ...form, facultyId });
+									}
+								}}
 							>
 								<SelectTrigger>
-									<SelectValue placeholder="Selecciona" />
+									<SelectValue placeholder="Selecciona una facultad" />
 								</SelectTrigger>
-								<SelectContent>
-									{faculties.length === 0 ? (
-										<div className="px-3 py-2 text-sm text-muted-foreground">
+								<SelectContent position="popper">
+									{faculties.length === 0 && (
+										<SelectItem
+											key="empty"
+											value="0"
+											disabled
+										>
 											Sin facultades disponibles
-										</div>
-									) : (
+										</SelectItem>
+									)}
+									{faculties.length > 0 &&
 										faculties.map((f) => (
 											<SelectItem
-												key={f.facultyId}
-												value={String(f.facultyId)}
+												key={f.id}
+												value={String(f.id)}
 											>
 												{f.facultyName}
 											</SelectItem>
-										))
-									)}
+										))}
 								</SelectContent>
 							</Select>
 						</div>
@@ -383,13 +491,18 @@ export function ProgramsManagement() {
 								<Select
 									value={form.academicLevel}
 									onValueChange={(val) =>
-										setForm({ ...form, academicLevel: val })
+										setForm({
+											...form,
+											academicLevel: val as
+												| 'UNDERGRADUATE'
+												| 'POSTGRADUATE',
+										})
 									}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Selecciona" />
 									</SelectTrigger>
-									<SelectContent>
+									<SelectContent position="popper">
 										<SelectItem value="UNDERGRADUATE">
 											Pregrado
 										</SelectItem>
@@ -406,13 +519,20 @@ export function ProgramsManagement() {
 								<Select
 									value={form.degreeType}
 									onValueChange={(val) =>
-										setForm({ ...form, degreeType: val })
+										setForm({
+											...form,
+											degreeType: val as
+												| 'BACHELOR'
+												| 'MASTER'
+												| 'DOCTORATE'
+												| 'DIPLOMA',
+										})
 									}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Selecciona" />
 									</SelectTrigger>
-									<SelectContent>
+									<SelectContent position="popper">
 										<SelectItem value="BACHELOR">
 											Bachiller
 										</SelectItem>
@@ -446,7 +566,7 @@ export function ProgramsManagement() {
 								<SelectTrigger>
 									<SelectValue placeholder="Selecciona" />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent position="popper">
 									<SelectItem value="true">Activo</SelectItem>
 									<SelectItem value="false">
 										Inactivo
@@ -457,7 +577,9 @@ export function ProgramsManagement() {
 					</div>
 
 					<DialogFooter>
-						<Button onClick={handleSave}>Guardar</Button>
+						<Button onClick={handleSave} disabled={saving}>
+							{saving ? 'Guardando...' : 'Guardar'}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

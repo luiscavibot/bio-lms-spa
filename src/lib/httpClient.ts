@@ -141,10 +141,18 @@ class HttpClient {
 			? await this.getAuthHeaders()
 			: { 'Content-Type': 'application/json' };
 
+		const body = JSON.stringify(data);
+		console.log('🌐 HTTP POST:', {
+			url: this.resolveUrl(url),
+			dataObject: data,
+			bodyString: body,
+			headers: Object.keys(headers),
+		});
+
 		const response = await fetch(this.resolveUrl(url), {
 			method: 'POST',
 			headers,
-			body: JSON.stringify(data),
+			body,
 			...restConfig,
 		});
 

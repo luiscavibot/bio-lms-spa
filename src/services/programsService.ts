@@ -10,8 +10,8 @@ export interface ProgramDto {
 	programCode: string;
 	facultyId: number;
 	facultyName?: string;
-	academicLevel?: string; // UNDERGRADUATE | POSTGRADUATE
-	degreeType?: string; // BACHELOR | MASTER | DOCTORATE | DIPLOMA
+	academicLevel?: 'UNDERGRADUATE' | 'POSTGRADUATE';
+	degreeType?: 'BACHELOR' | 'MASTER' | 'DOCTORATE' | 'DIPLOMA';
 	isActive: boolean;
 }
 
@@ -19,16 +19,16 @@ export interface CreateProgramDto {
 	programName: string;
 	programCode: string;
 	facultyId: number;
-	academicLevel: string;
-	degreeType: string;
+	academicLevel: 'UNDERGRADUATE' | 'POSTGRADUATE';
+	degreeType: 'BACHELOR' | 'MASTER' | 'DOCTORATE' | 'DIPLOMA';
 }
 
 export interface UpdateProgramDto {
 	programName?: string;
 	programCode?: string;
 	facultyId?: number;
-	academicLevel?: string;
-	degreeType?: string;
+	academicLevel?: 'UNDERGRADUATE' | 'POSTGRADUATE';
+	degreeType?: 'BACHELOR' | 'MASTER' | 'DOCTORATE' | 'DIPLOMA';
 	isActive?: boolean;
 }
 

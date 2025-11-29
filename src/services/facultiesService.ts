@@ -1,7 +1,7 @@
 import { httpClient } from '@/lib/httpClient';
 
 export interface FacultyDto {
-	facultyId: number;
+	id: number;
 	facultyName: string;
 	isActive: boolean;
 }
