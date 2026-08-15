@@ -48,10 +48,6 @@ export function PasswordChangeModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log('📤 Enviando nueva contraseña desde modal');
-		console.log('📏 Longitud:', newPassword.length);
-		console.log('✅ Requisitos cumplidos:', allRequirementsMet);
-		console.log('✅ Contraseñas coinciden:', passwordsMatch);
 		if (canSubmit) {
 			onConfirm(newPassword);
 		}

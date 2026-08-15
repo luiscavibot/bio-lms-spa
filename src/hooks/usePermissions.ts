@@ -90,7 +90,6 @@ export function useUserRole(): RoleName | null {
  * @example
  * const isAdmin = useHasRole('Admin');
  * const isTeacher = useHasRole('Teacher');
- * const isStudent = useHasRole('Student');
  */
 export function useHasRole(role: RoleName): boolean {
 	const userRole = useUserRole();

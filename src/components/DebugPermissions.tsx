@@ -17,7 +17,6 @@ export function DebugPermissions() {
 	const userRole = useUserRole();
 	const isAdmin = useHasRole('Admin');
 	const isTeacher = useHasRole('Teacher');
-	const isStudent = useHasRole('Student');
 
 	return (
 		<div className="fixed bottom-4 right-4 bg-white border-2 border-red-500 p-4 rounded-lg shadow-lg max-w-md z-50">
@@ -51,11 +50,6 @@ export function DebugPermissions() {
 				<div>
 					<strong>¿Es Teacher?</strong>{' '}
 					{isTeacher ? '✅ SÍ' : '❌ NO'}
-				</div>
-
-				<div>
-					<strong>¿Es Student?</strong>{' '}
-					{isStudent ? '✅ SÍ' : '❌ NO'}
 				</div>
 
 				<div>

@@ -47,13 +47,9 @@ export function ForgotPassword() {
 		setIsLoading(true);
 
 		try {
-			console.log('📧 Solicitando código de recuperación para:', email);
 			await resetPassword({ username: email });
-			console.log('✅ Código enviado');
 			setStep('confirm');
 		} catch (err: any) {
-			console.error('❌ Error al solicitar código:', err);
-
 			let errorMessage = 'Error al solicitar el código de recuperación';
 			if (err.name === 'UserNotFoundException') {
 				errorMessage = 'No se encontró un usuario con ese correo';
@@ -86,17 +82,13 @@ export function ForgotPassword() {
 		setIsLoading(true);
 
 		try {
-			console.log('🔐 Confirmando nueva contraseña...');
 			await confirmResetPassword({
 				username: email,
 				confirmationCode: code,
 				newPassword: newPassword,
 			});
-			console.log('✅ Contraseña actualizada');
 			setStep('success');
 		} catch (err: any) {
-			console.error('❌ Error al actualizar contraseña:', err);
-
 			let errorMessage = 'Error al actualizar la contraseña';
 			if (err.name === 'CodeMismatchException') {
 				errorMessage =

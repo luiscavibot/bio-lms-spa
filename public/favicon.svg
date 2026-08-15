@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BioRepo">
+  <rect width="64" height="64" rx="14" fill="#183b2c"/>
+  <path d="M14 17h13c4 0 7 2 9 5v29c-2-3-5-5-9-5H14V17Z" fill="#fff"/>
+  <path d="M50 17H37c-4 0-7 2-9 5v29c2-3 5-5 9-5h13V17Z" fill="#d8eadf"/>
+  <path d="M32 25c4-7 10-8 15-7-1 8-6 14-15 15" fill="none" stroke="#38a878" stroke-width="3" stroke-linecap="round"/>
+</svg>

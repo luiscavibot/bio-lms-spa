@@ -1,115 +1,111 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import { Dashboard } from '@/pages/Dashboard';
-import { Library } from '@/pages/Library';
-import { CourseDetail } from '@/pages/CourseDetail';
-import { Login } from '@/pages/Login';
-import { ForgotPassword } from '@/pages/ForgotPassword';
-import { Unauthorized } from '@/pages/Unauthorized';
-import { Maintenance } from '@/pages/Maintenance';
-import { Layout } from '@/components/Layout';
-import { useAuthStore } from '@/store/authStore';
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import { useAuthStore } from "@/store/authStore";
+
+const Courses = lazy(() =>
+  import("@/pages/Courses").then((module) => ({ default: module.Courses })),
+);
+const CourseDetail = lazy(() =>
+  import("@/pages/CourseDetail").then((module) => ({
+    default: module.CourseDetail,
+  })),
+);
+const ForgotPassword = lazy(() =>
+  import("@/pages/ForgotPassword").then((module) => ({
+    default: module.ForgotPassword,
+  })),
+);
+const Login = lazy(() =>
+  import("@/pages/Login").then((module) => ({ default: module.Login })),
+);
+const Maintenance = lazy(() =>
+  import("@/pages/Maintenance").then((module) => ({
+    default: module.Maintenance,
+  })),
+);
+const Unauthorized = lazy(() =>
+  import("@/pages/Unauthorized").then((module) => ({
+    default: module.Unauthorized,
+  })),
+);
+
+function PageFallback() {
+  return (
+    <div className="repo-page-state">
+      <span className="repo-spinner" />
+      Cargando…
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-	const isLoading = useAuthStore((state) => state.isLoading);
-	const tokens = useAuthStore((state) => state.tokens);
-
-	// Mostrar loading mientras verifica la sesión
-	if (isLoading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50">
-				<div className="text-center">
-					<div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-					<p className="mt-4 text-gray-600">Verificando sesión...</p>
-				</div>
-			</div>
-		);
-	}
-
-	// Verificar autenticación Y que existan tokens válidos
-	if (!isAuthenticated || !tokens?.accessToken) {
-		console.log('🔒 Acceso denegado - Redirigiendo a login');
-		return <Navigate to="/login" replace />;
-	}
-
-	return <>{children}</>;
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const accessToken = useAuthStore((state) => state.tokens?.accessToken);
+  if (isLoading) {
+    return (
+      <div className="repo-page-state">
+        <span className="repo-spinner" />
+        Verificando sesión…
+      </div>
+    );
+  }
+  return isAuthenticated && accessToken ? (
+    children
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 export function AppRouter() {
-	const checkAuth = useAuthStore((state) => state.checkAuth);
-	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-	const tokens = useAuthStore((state) => state.tokens);
-	const backendUser = useAuthStore((state) => state.backendUser);
-	const fetchUserPermissions = useAuthStore(
-		(state) => state.fetchUserPermissions
-	);
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accessToken = useAuthStore((state) => state.tokens?.accessToken);
+  const backendUser = useAuthStore((state) => state.backendUser);
+  const fetchUserPermissions = useAuthStore(
+    (state) => state.fetchUserPermissions,
+  );
 
-	useEffect(() => {
-		// Verificar si hay una sesión activa de Cognito al iniciar la app
-		checkAuth();
-	}, [checkAuth]);
+  useEffect(() => {
+    void checkAuth();
+  }, [checkAuth]);
 
-	useEffect(() => {
-		// Si ya está autenticado y hay token, cargar permisos si no existen
-		if (isAuthenticated && tokens?.accessToken && !backendUser) {
-			console.log('📡 Cargando permisos tras checkAuth...');
-			fetchUserPermissions();
-		}
-	}, [isAuthenticated, tokens, backendUser, fetchUserPermissions]);
+  useEffect(() => {
+    if (isAuthenticated && accessToken && !backendUser)
+      void fetchUserPermissions();
+  }, [isAuthenticated, accessToken, backendUser, fetchUserPermissions]);
 
-	return (
-		<BrowserRouter>
-			<Routes>
-				{/* Rutas públicas */}
-				<Route path="/login" element={<Login />} />
-				<Route path="/forgot-password" element={<ForgotPassword />} />
-				<Route path="/unauthorized" element={<Unauthorized />} />
+  const protectedPage = (page: React.ReactNode) => (
+    <ProtectedRoute>{page}</ProtectedRoute>
+  );
 
-				{/* Rutas protegidas */}
-				<Route element={<Layout />}>
-					<Route
-						path="/"
-						element={
-							<ProtectedRoute>
-								<Dashboard />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/library"
-						element={
-							<ProtectedRoute>
-								<Library />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/course/:blockId"
-						element={
-							<ProtectedRoute>
-								<CourseDetail />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/block/:blockId"
-						element={
-							<ProtectedRoute>
-								<CourseDetail />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/maintenance"
-						element={
-							<ProtectedRoute>
-								<Maintenance />
-							</ProtectedRoute>
-						}
-					/>
-				</Route>
-			</Routes>
-		</BrowserRouter>
-	);
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={protectedPage(<Courses />)} />
+            <Route
+              path="/courses/:offeringId"
+              element={protectedPage(<CourseDetail />)}
+            />
+            <Route
+              path="/maintenance"
+              element={protectedPage(<Maintenance />)}
+            />
+            <Route path="/library" element={<Navigate to="/" replace />} />
+            <Route
+              path="/course/:offeringId"
+              element={<Navigate to="/" replace />}
+            />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
 }

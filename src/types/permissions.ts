@@ -5,7 +5,7 @@
 
 // ==================== ROLES ====================
 
-export type RoleName = 'Admin' | 'Teacher' | 'Student';
+export type RoleName = 'Admin' | 'Teacher';
 
 export interface Role {
 	roleId: number;
@@ -43,7 +43,6 @@ export type Actions =
  */
 export type Subjects =
 	| 'Course' // Cursos
-	| 'Student' // Estudiantes
 	| 'Grade' // Calificaciones
 	| 'User' // Usuarios
 	| 'Assignment' // Tareas/Asignaciones

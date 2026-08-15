@@ -1,241 +1,131 @@
-import { useAuthStore } from '@/store/authStore';
-
-/**
- * Cliente HTTP configurado para usar tokens de autenticación automáticamente
- * Maneja renovación de tokens y redirección en caso de sesión expirada
- */
+import { useAuthStore } from "@/store/authStore";
 
 interface RequestConfig extends RequestInit {
-	requiresAuth?: boolean;
+  requiresAuth?: boolean;
 }
 
 class HttpClient {
-	private baseURL: string;
+  private readonly baseURL: string;
 
-	constructor(baseURL: string = '') {
-		this.baseURL = baseURL;
-	}
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
 
-	private resolveUrl(path: string): string {
-		// Si el path es absoluto, retornarlo tal cual
-		if (/^https?:\/\//.test(path)) {
-			return path;
-		}
+  private resolveUrl(path: string): string {
+    if (/^https?:\/\//.test(path)) return path;
+    const base = this.baseURL.replace(/\/$/, "");
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    if (base.endsWith("/api/v1") && normalized.startsWith("/api/v1")) {
+      return `${base}${normalized.slice("/api/v1".length)}`;
+    }
+    return `${base}${normalized}`;
+  }
 
-		const base = this.baseURL.replace(/\/$/, ''); // sin barra final
-		const p = path.startsWith('/') ? path : `/${path}`;
+  private async request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    config: RequestConfig = {},
+    retried = false,
+  ): Promise<T> {
+    const { requiresAuth = true, headers: customHeaders, ...rest } = config;
+    const headers = new Headers(customHeaders);
+    if (requiresAuth) {
+      const accessToken = useAuthStore.getState().tokens?.accessToken;
+      if (!accessToken) throw new Error("No hay una sesión activa");
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
+    if (body !== undefined && !(body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
+    }
 
-		// Evitar duplicar /api/v1 si ya está en base y también en path
-		const apiPrefix = '/api/v1';
-		const baseEndsWithApi = base.endsWith(apiPrefix);
-		const pathStartsWithApi = p.startsWith(apiPrefix);
+    const response = await fetch(this.resolveUrl(url), {
+      ...rest,
+      method,
+      headers,
+      body:
+        body === undefined
+          ? undefined
+          : body instanceof FormData
+            ? body
+            : JSON.stringify(body),
+    });
 
-		if (baseEndsWithApi && pathStartsWithApi) {
-			return `${base}${p.substring(apiPrefix.length)}`;
-		}
+    if (response.status === 401 && requiresAuth && !retried) {
+      await useAuthStore.getState().checkAuth();
+      if (useAuthStore.getState().tokens?.accessToken) {
+        return this.request<T>(method, url, body, config, true);
+      }
+    }
 
-		return `${base}${p}`;
-	}
+    if (!response.ok) {
+      let message = `Error HTTP ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = Array.isArray(payload.message)
+          ? payload.message.join(". ")
+          : payload.message || payload.error || message;
+      } catch {
+        const text = await response.text();
+        if (text) message = text;
+      }
+      if (response.status === 401) {
+        await useAuthStore.getState().logout();
+        message = "Tu sesión expiró. Inicia sesión nuevamente.";
+      }
+      if (response.status === 403)
+        message = "No tienes permisos para realizar esta acción.";
+      throw new Error(message);
+    }
 
-	private async getAuthHeaders(): Promise<HeadersInit> {
-		const tokens = useAuthStore.getState().tokens;
-		// Backend valida exclusivamente el accessToken (Cognito Access Token)
-		const bearerToken = tokens?.accessToken;
+    if (response.status === 204) return undefined as T;
+    const contentType = response.headers.get("content-type");
+    return (
+      contentType?.includes("application/json")
+        ? await response.json()
+        : await response.text()
+    ) as T;
+  }
 
-		if (!bearerToken) {
-			throw new Error('No hay token de autenticación disponible');
-		}
+  get<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>("GET", url, undefined, config);
+  }
 
-		const headers = {
-			Authorization: `Bearer ${bearerToken}`,
-			'Content-Type': 'application/json',
-		};
+  post<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>("POST", url, data, config);
+  }
 
-		// Log para trazabilidad del tipo de token
-		console.log('🔑 Auth headers preparados', {
-			usesAccessToken: !!tokens?.accessToken,
-			usesIdToken: false,
-		});
+  put<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>("PUT", url, data, config);
+  }
 
-		return headers;
-	}
+  patch<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>("PATCH", url, data, config);
+  }
 
-	private async handleResponse(response: Response) {
-		// Si el token expiró o es inválido (401 - No autorizado)
-		if (response.status === 401) {
-			console.error('🔒 Token inválido o expirado (401)');
+  delete<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>("DELETE", url, undefined, config);
+  }
 
-			// Intentar renovar la sesión
-			const checkAuth = useAuthStore.getState().checkAuth;
-			await checkAuth();
+  upload<T>(url: string, file: File, config?: RequestConfig): Promise<T> {
+    const form = new FormData();
+    form.append("file", file);
+    return this.request<T>("POST", url, form, config);
+  }
 
-			// Si después de checkAuth sigue sin token, logout
-			const tokens = useAuthStore.getState().tokens;
-			if (!tokens?.accessToken) {
-				console.log(
-					'❌ No se pudo renovar la sesión, limpiando estado...'
-				);
-				const logout = useAuthStore.getState().logout;
-				await logout();
-
-				// Limpiar localStorage/sessionStorage
-				localStorage.clear();
-				sessionStorage.clear();
-
-				// Redirigir a login
-				window.location.href = '/login';
-				throw new Error(
-					'Sesión expirada. Por favor, inicia sesión nuevamente.'
-				);
-			}
-		}
-
-		// Si no tiene permisos (403 - Forbidden)
-		if (response.status === 403) {
-			console.error(
-				'🚫 No tienes permisos para realizar esta acción (403)'
-			);
-			throw new Error('No tienes permisos para realizar esta acción');
-		}
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(error || `HTTP Error ${response.status}`);
-		}
-
-		// Si la respuesta está vacía, retornar null
-		const contentType = response.headers.get('content-type');
-		if (contentType?.includes('application/json')) {
-			return response.json();
-		}
-		return response.text();
-	}
-
-	async get<T>(url: string, config: RequestConfig = {}): Promise<T> {
-		const { requiresAuth = true, ...restConfig } = config;
-
-		const headers = requiresAuth
-			? await this.getAuthHeaders()
-			: { 'Content-Type': 'application/json' };
-
-		const fullUrl = this.resolveUrl(url);
-		console.log('🌐 HTTP GET:', { url: fullUrl, requiresAuth });
-
-		const response = await fetch(fullUrl, {
-			method: 'GET',
-			headers,
-			...restConfig,
-		});
-
-		return this.handleResponse(response);
-	}
-
-	async post<T>(
-		url: string,
-		data?: any,
-		config: RequestConfig = {}
-	): Promise<T> {
-		const { requiresAuth = true, ...restConfig } = config;
-
-		const headers = requiresAuth
-			? await this.getAuthHeaders()
-			: { 'Content-Type': 'application/json' };
-
-		const body = JSON.stringify(data);
-		console.log('🌐 HTTP POST:', {
-			url: this.resolveUrl(url),
-			dataObject: data,
-			bodyString: body,
-			headers: Object.keys(headers),
-		});
-
-		const response = await fetch(this.resolveUrl(url), {
-			method: 'POST',
-			headers,
-			body,
-			...restConfig,
-		});
-
-		return this.handleResponse(response);
-	}
-
-	async put<T>(
-		url: string,
-		data?: any,
-		config: RequestConfig = {}
-	): Promise<T> {
-		const { requiresAuth = true, ...restConfig } = config;
-
-		const headers = requiresAuth
-			? await this.getAuthHeaders()
-			: { 'Content-Type': 'application/json' };
-
-		const response = await fetch(this.resolveUrl(url), {
-			method: 'PUT',
-			headers,
-			body: JSON.stringify(data),
-			...restConfig,
-		});
-
-		return this.handleResponse(response);
-	}
-
-	async delete<T>(url: string, config: RequestConfig = {}): Promise<T> {
-		const { requiresAuth = true, ...restConfig } = config;
-
-		const headers = requiresAuth
-			? await this.getAuthHeaders()
-			: { 'Content-Type': 'application/json' };
-
-		const response = await fetch(this.resolveUrl(url), {
-			method: 'DELETE',
-			headers,
-			...restConfig,
-		});
-
-		return this.handleResponse(response);
-	}
-
-	async upload<T>(
-		url: string,
-		file: File,
-		config: RequestConfig = {}
-	): Promise<T> {
-		const { requiresAuth = true, ...restConfig } = config;
-
-		const tokens = useAuthStore.getState().tokens;
-		const accessToken = tokens?.accessToken;
-
-		if (requiresAuth && !accessToken) {
-			throw new Error('No hay token de autenticación disponible');
-		}
-
-		const formData = new FormData();
-		formData.append('file', file);
-
-		const headers: HeadersInit = requiresAuth
-			? { Authorization: `Bearer ${accessToken}` }
-			: {};
-
-		const response = await fetch(this.resolveUrl(url), {
-			method: 'POST',
-			headers,
-			body: formData,
-			...restConfig,
-		});
-
-		return this.handleResponse(response);
-	}
+  uploadForm<T>(
+    url: string,
+    form: FormData,
+    config?: RequestConfig,
+  ): Promise<T> {
+    return this.request<T>("POST", url, form, config);
+  }
 }
 
-// Instancia por defecto (ajusta la baseURL según tu API backend)
-// Nota: VITE_API_URL debe ser la raíz del backend (ej. http://localhost:3000)
-// y los servicios deben incluir el path completo (ej. /api/v1/...)
 export const httpClient = new HttpClient(
-	import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:3000",
 );
 
-// Hook para usar en componentes React
 export function useHttpClient() {
-	return httpClient;
+  return httpClient;
 }

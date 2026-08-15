@@ -49,11 +49,11 @@ export function Unauthorized() {
 							Volver atrás
 						</Button>
 						<Button
-							onClick={() => navigate('/dashboard')}
+							onClick={() => navigate('/')}
 							className="w-full"
 						>
 							<Home className="w-4 h-4 mr-2" />
-							Ir al Dashboard
+							Ir a Cursos
 						</Button>
 					</div>
 				</CardContent>

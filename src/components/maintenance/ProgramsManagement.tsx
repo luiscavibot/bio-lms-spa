@@ -60,9 +60,11 @@ export function ProgramsManagement() {
 		isActive: true,
 	});
 
+	// Componente legado conservado para compatibilidad; la carga ocurre una vez al montar.
 	useEffect(() => {
 		loadPrograms();
 		loadFaculties();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	useEffect(() => {

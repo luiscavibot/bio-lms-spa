@@ -16,7 +16,6 @@ export type MaterialTypeValue =
 	(typeof MaterialType)[keyof typeof MaterialType];
 
 export const UserRole = {
-	STUDENT: 'Student',
 	TEACHER: 'Teacher',
 	ADMIN: 'Admin',
 } as const;

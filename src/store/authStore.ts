@@ -1,378 +1,333 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 import {
-	signIn,
-	signOut,
-	getCurrentUser,
-	fetchUserAttributes,
-	confirmSignIn,
-	fetchAuthSession,
-} from 'aws-amplify/auth';
-import type { User } from '@/types/academic-new';
-import type { User as BackendUser } from '@/types/permissions';
-import type { AppAbility } from '@/lib/abilityBuilder';
-import { buildAbilityFrom, createEmptyAbility } from '@/lib/abilityBuilder';
-import { authService } from '@/services/authService';
+  signIn,
+  signOut,
+  getCurrentUser,
+  fetchUserAttributes,
+  confirmSignIn,
+  fetchAuthSession,
+} from "aws-amplify/auth";
+import type { User } from "@/types/academic-new";
+import type { User as BackendUser } from "@/types/permissions";
+import type { AppAbility } from "@/lib/abilityBuilder";
+import { buildAbilityFrom, createEmptyAbility } from "@/lib/abilityBuilder";
+import { authService } from "@/services/authService";
 
 interface AuthTokens {
-	accessToken: string;
-	idToken: string;
-	refreshToken?: string;
+  accessToken: string;
+  idToken: string;
+  refreshToken?: string;
 }
 
 interface AuthState {
-	user: User | null;
-	backendUser: BackendUser | null; // Usuario con información de roles del backend
-	ability: AppAbility; // Permisos CASL
-	tokens: AuthTokens | null;
-	isAuthenticated: boolean;
-	isLoading: boolean;
-	error: string | null;
-	needsPasswordChange: boolean;
-	tempEmail: string | null; // Para recordar el email durante el cambio de contraseña
+  user: User | null;
+  backendUser: BackendUser | null; // Usuario con información de roles del backend
+  ability: AppAbility; // Permisos CASL
+  tokens: AuthTokens | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  needsPasswordChange: boolean;
+  tempEmail: string | null; // Para recordar el email durante el cambio de contraseña
 
-	// Actions
-	login: (email: string, password: string) => Promise<void>;
-	confirmNewPassword: (newPassword: string) => Promise<void>;
-	logout: () => Promise<void>;
-	checkAuth: () => Promise<void>;
-	clearError: () => void;
-	getAccessToken: () => string | null;
-	fetchUserPermissions: () => Promise<void>; // Obtener usuario y permisos del backend
+  // Actions
+  login: (email: string, password: string) => Promise<void>;
+  confirmNewPassword: (newPassword: string) => Promise<void>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+  clearError: () => void;
+  getAccessToken: () => string | null;
+  fetchUserPermissions: () => Promise<void>; // Obtener usuario y permisos del backend
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-	user: null,
-	backendUser: null,
-	ability: createEmptyAbility(),
-	tokens: null,
-	isAuthenticated: false,
-	isLoading: true,
-	error: null,
-	needsPasswordChange: false,
-	tempEmail: null,
+  user: null,
+  backendUser: null,
+  ability: createEmptyAbility(),
+  tokens: null,
+  isAuthenticated: false,
+  isLoading: true,
+  error: null,
+  needsPasswordChange: false,
+  tempEmail: null,
 
-	login: async (email: string, password: string) => {
-		set({ isLoading: true, error: null });
-		try {
-			console.log('🔐 Intentando login con:', { email });
+  login: async (email: string, password: string) => {
+    set({
+      isLoading: true,
+      error: null,
+      backendUser: null,
+      ability: createEmptyAbility(),
+    });
+    try {
+      const { isSignedIn, nextStep } = await signIn({
+        username: email,
+        password,
+      });
 
-			const { isSignedIn, nextStep } = await signIn({
-				username: email,
-				password,
-			});
+      if (isSignedIn) {
+        const cognitoUser = await getCurrentUser();
 
-			console.log('✅ SignIn response:', { isSignedIn, nextStep });
+        const attributes = await fetchUserAttributes();
 
-			if (isSignedIn) {
-				const cognitoUser = await getCurrentUser();
-				console.log('👤 Cognito user:', cognitoUser);
+        // Obtener tokens JWT de la sesión
+        const session = await fetchAuthSession();
+        const tokens: AuthTokens | null = session.tokens
+          ? {
+              accessToken: session.tokens.accessToken.toString(),
+              idToken: session.tokens.idToken?.toString() || "",
+            }
+          : null;
 
-				const attributes = await fetchUserAttributes();
-				console.log('📋 User attributes:', attributes);
+        const user: User = {
+          userId: parseInt(cognitoUser.userId) || 1,
+          externalAuthId: cognitoUser.userId,
+          authProvider: "AWS_COGNITO",
+          email: attributes.email || email,
+          firstName: attributes.given_name || "",
+          lastName: attributes.family_name || "",
+          roleId: 0, // El rol autoritativo se obtiene del backend.
+          isActive: true,
+        };
 
-				// Obtener tokens JWT de la sesión
-				const session = await fetchAuthSession();
-				const tokens: AuthTokens | null = session.tokens
-					? {
-							accessToken: session.tokens.accessToken.toString(),
-							idToken: session.tokens.idToken?.toString() || '',
-					  }
-					: null;
+        set({
+          user,
+          tokens,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+          needsPasswordChange: false,
+          tempEmail: null,
+        });
+      } else if (nextStep) {
+        // Manejar el caso de cambio de contraseña requerido
+        if (
+          nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED"
+        ) {
+          set({
+            needsPasswordChange: true,
+            tempEmail: email,
+            isLoading: false,
+            error: null,
+          });
+        } else {
+          set({
+            error: `Se requiere completar: ${nextStep.signInStep}`,
+            isLoading: false,
+            isAuthenticated: false,
+            needsPasswordChange: false,
+          });
+        }
+      }
+    } catch (error: any) {
+      let errorMessage = "Error al iniciar sesión";
 
-				console.log('🔑 Tokens obtenidos:', {
-					hasAccessToken: !!tokens?.accessToken,
-					hasIdToken: !!tokens?.idToken,
-					hasRefreshToken: !!tokens?.refreshToken,
-				});
+      // Manejo de errores específicos de Cognito
+      if (error.name === "NotAuthorizedException") {
+        errorMessage = "Usuario o contraseña incorrectos";
+      } else if (error.name === "UserNotFoundException") {
+        errorMessage = "Usuario no encontrado";
+      } else if (error.name === "UserNotConfirmedException") {
+        errorMessage = "Usuario no confirmado. Verifica tu email.";
+      } else if (error.name === "PasswordResetRequiredException") {
+        errorMessage = "Debes restablecer tu contraseña";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
-				const user: User = {
-					userId: parseInt(cognitoUser.userId) || 1,
-					externalAuthId: cognitoUser.userId,
-					authProvider: 'AWS_COGNITO',
-					email: attributes.email || email,
-					firstName: attributes.given_name || '',
-					lastName: attributes.family_name || '',
-					roleId: 3, // Student by default
-					isActive: true,
-				};
+      set({
+        error: errorMessage,
+        isLoading: false,
+        isAuthenticated: false,
+      });
+    }
+  },
 
-				set({
-					user,
-					tokens,
-					isAuthenticated: true,
-					isLoading: false,
-					error: null,
-					needsPasswordChange: false,
-					tempEmail: null,
-				});
+  logout: async () => {
+    try {
+      await signOut();
+      set({
+        user: null,
+        backendUser: null,
+        ability: createEmptyAbility(),
+        tokens: null,
+        isAuthenticated: false,
+        error: null,
+      });
+    } catch (error: any) {
+      set({ error: error.message || "Error al cerrar sesión" });
+    }
+  },
 
-				console.log('✅ Login exitoso');
-			} else if (nextStep) {
-				console.log('⚠️ Se requiere un paso adicional:', nextStep);
+  checkAuth: async () => {
+    set({ isLoading: true });
+    try {
+      const cognitoUser = await getCurrentUser();
 
-				// Manejar el caso de cambio de contraseña requerido
-				if (
-					nextStep.signInStep ===
-					'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'
-				) {
-					set({
-						needsPasswordChange: true,
-						tempEmail: email,
-						isLoading: false,
-						error: null,
-					});
-				} else {
-					set({
-						error: `Se requiere completar: ${nextStep.signInStep}`,
-						isLoading: false,
-						isAuthenticated: false,
-						needsPasswordChange: false,
-					});
-				}
-			}
-		} catch (error: any) {
-			console.error('❌ Login error:', error);
-			console.error('Error name:', error.name);
-			console.error('Error message:', error.message);
+      const attributes = await fetchUserAttributes();
 
-			let errorMessage = 'Error al iniciar sesión';
+      // Obtener tokens de la sesión existente
+      const session = await fetchAuthSession();
+      const tokens: AuthTokens | null = session.tokens
+        ? {
+            accessToken: session.tokens.accessToken.toString(),
+            idToken: session.tokens.idToken?.toString() || "",
+          }
+        : null;
 
-			// Manejo de errores específicos de Cognito
-			if (error.name === 'NotAuthorizedException') {
-				errorMessage = 'Usuario o contraseña incorrectos';
-			} else if (error.name === 'UserNotFoundException') {
-				errorMessage = 'Usuario no encontrado';
-			} else if (error.name === 'UserNotConfirmedException') {
-				errorMessage = 'Usuario no confirmado. Verifica tu email.';
-			} else if (error.name === 'PasswordResetRequiredException') {
-				errorMessage = 'Debes restablecer tu contraseña';
-			} else if (error.message) {
-				errorMessage = error.message;
-			}
+      const user: User = {
+        userId: parseInt(cognitoUser.userId) || 1,
+        externalAuthId: cognitoUser.userId,
+        authProvider: "AWS_COGNITO",
+        email: attributes.email || "",
+        firstName: attributes.given_name || "",
+        lastName: attributes.family_name || "",
+        roleId: 0,
+        isActive: true,
+      };
 
-			set({
-				error: errorMessage,
-				isLoading: false,
-				isAuthenticated: false,
-			});
-		}
-	},
+      set({
+        user,
+        tokens,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch {
+      set({
+        user: null,
+        backendUser: null,
+        ability: createEmptyAbility(),
+        tokens: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    }
+  },
 
-	logout: async () => {
-		try {
-			await signOut();
-			set({
-				user: null,
-				tokens: null,
-				isAuthenticated: false,
-				error: null,
-			});
-		} catch (error: any) {
-			console.error('Logout error:', error);
-			set({ error: error.message || 'Error al cerrar sesión' });
-		}
-	},
+  confirmNewPassword: async (newPassword: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { isSignedIn } = await confirmSignIn({
+        challengeResponse: newPassword,
+      });
 
-	checkAuth: async () => {
-		set({ isLoading: true });
-		try {
-			console.log('🔍 Verificando sesión de Cognito...');
-			const cognitoUser = await getCurrentUser();
-			console.log('👤 Usuario encontrado:', cognitoUser);
+      if (isSignedIn) {
+        const cognitoUser = await getCurrentUser();
+        const attributes = await fetchUserAttributes();
+        const tempEmail = get().tempEmail;
+        const session = await fetchAuthSession();
+        const tokens: AuthTokens | null = session.tokens
+          ? {
+              accessToken: session.tokens.accessToken.toString(),
+              idToken: session.tokens.idToken?.toString() || "",
+            }
+          : null;
 
-			const attributes = await fetchUserAttributes();
-			console.log('📋 Atributos:', attributes);
+        const user: User = {
+          userId: parseInt(cognitoUser.userId) || 1,
+          externalAuthId: cognitoUser.userId,
+          authProvider: "AWS_COGNITO",
+          email: attributes.email || tempEmail || "",
+          firstName: attributes.given_name || "",
+          lastName: attributes.family_name || "",
+          roleId: 0,
+          isActive: true,
+        };
 
-			// Obtener tokens de la sesión existente
-			const session = await fetchAuthSession();
-			const tokens: AuthTokens | null = session.tokens
-				? {
-						accessToken: session.tokens.accessToken.toString(),
-						idToken: session.tokens.idToken?.toString() || '',
-				  }
-				: null;
+        set({
+          user,
+          tokens,
+          isAuthenticated: !!tokens?.accessToken,
+          isLoading: false,
+          error: null,
+          needsPasswordChange: false,
+          tempEmail: null,
+        });
+      } else {
+        set({
+          error: "No se pudo completar el cambio de contraseña",
+          isLoading: false,
+        });
+      }
+    } catch (error: any) {
+      let errorMessage = "Error al cambiar la contraseña";
 
-			const user: User = {
-				userId: parseInt(cognitoUser.userId) || 1,
-				externalAuthId: cognitoUser.userId,
-				authProvider: 'AWS_COGNITO',
-				email: attributes.email || '',
-				firstName: attributes.given_name || '',
-				lastName: attributes.family_name || '',
-				roleId: 3,
-				isActive: true,
-			};
+      if (error.name === "InvalidPasswordException") {
+        errorMessage =
+          "La contraseña no cumple con los requisitos de seguridad";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
-			set({
-				user,
-				tokens,
-				isAuthenticated: true,
-				isLoading: false,
-			});
+      set({
+        error: errorMessage,
+        isLoading: false,
+      });
+    }
+  },
 
-			console.log('✅ Sesión restaurada');
-		} catch (error) {
-			console.log('ℹ️ No hay sesión activa');
-			set({
-				user: null,
-				tokens: null,
-				isAuthenticated: false,
-				isLoading: false,
-			});
-		}
-	},
+  clearError: () => set({ error: null }),
 
-	confirmNewPassword: async (newPassword: string) => {
-		set({ isLoading: true, error: null });
-		try {
-			console.log('🔐 Confirmando nueva contraseña...');
-			console.log('📏 Longitud de contraseña:', newPassword.length);
-			console.log('🔍 Validaciones:', {
-				length: newPassword.length >= 8,
-				hasUppercase: /[A-Z]/.test(newPassword),
-				hasLowercase: /[a-z]/.test(newPassword),
-				hasNumber: /\d/.test(newPassword),
-				hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword),
-			});
+  getAccessToken: () => {
+    const state = get();
+    return state.tokens?.accessToken || null;
+  },
 
-			const { isSignedIn, nextStep } = await confirmSignIn({
-				challengeResponse: newPassword,
-			});
+  fetchUserPermissions: async () => {
+    try {
+      const response = await authService.getMe();
 
-			console.log('✅ ConfirmSignIn response:', { isSignedIn, nextStep });
+      // El backend puede devolver { user, abilities } o un objeto usuario plano con abilities.
+      // Normalizamos ambas formas aquí.
+      const rawUser: any = (response as any).user ?? response;
+      const abilities = (response as any).abilities ?? rawUser?.abilities ?? [];
 
-			if (isSignedIn) {
-				const cognitoUser = await getCurrentUser();
-				const attributes = await fetchUserAttributes();
-				const tempEmail = get().tempEmail;
+      // Mapear shape de rol { id, roleName } -> { roleId, roleName }
+      const normalizedRole = rawUser?.role
+        ? {
+            roleId:
+              (rawUser.role.roleId as number) ?? (rawUser.role.id as number),
+            roleName: rawUser.role.roleName,
+          }
+        : undefined;
 
-				const user: User = {
-					userId: parseInt(cognitoUser.userId) || 1,
-					externalAuthId: cognitoUser.userId,
-					authProvider: 'AWS_COGNITO',
-					email: attributes.email || tempEmail || '',
-					firstName: attributes.given_name || '',
-					lastName: attributes.family_name || '',
-					roleId: 3,
-					isActive: true,
-				};
+      if (
+        !normalizedRole ||
+        !["Admin", "Teacher"].includes(normalizedRole.roleName)
+      ) {
+        throw new Error("El usuario no tiene un rol habilitado en BioRepo");
+      }
 
-				set({
-					user,
-					isAuthenticated: true,
-					isLoading: false,
-					error: null,
-					needsPasswordChange: false,
-					tempEmail: null,
-				});
+      const backendUser = rawUser
+        ? {
+            userId: rawUser.userId,
+            email: rawUser.email,
+            firstName: rawUser.firstName ?? "",
+            lastName: rawUser.lastName ?? "",
+            cognitoId:
+              (rawUser.cognitoId as string) ??
+              (rawUser.externalAuthId as string),
+            role: normalizedRole,
+            createdAt: rawUser.createdAt,
+            updatedAt: rawUser.updatedAt,
+          }
+        : null;
 
-				console.log('✅ Contraseña cambiada y login exitoso');
-			} else {
-				set({
-					error: 'No se pudo completar el cambio de contraseña',
-					isLoading: false,
-				});
-			}
-		} catch (error: any) {
-			console.error('❌ Error al cambiar contraseña:', error);
+      // Construir ability desde las reglas del backend
+      const ability = buildAbilityFrom(abilities);
 
-			let errorMessage = 'Error al cambiar la contraseña';
+      set({ backendUser, ability });
+    } catch (error: any) {
+      // Si es 401, limpiar sesión y redirigir a login
+      if (error.message?.includes("401")) {
+        await get().logout();
+        return;
+      }
 
-			if (error.name === 'InvalidPasswordException') {
-				errorMessage =
-					'La contraseña no cumple con los requisitos de seguridad';
-			} else if (error.message) {
-				errorMessage = error.message;
-			}
-
-			set({
-				error: errorMessage,
-				isLoading: false,
-			});
-		}
-	},
-
-	clearError: () => set({ error: null }),
-
-	getAccessToken: () => {
-		const state = get();
-		return state.tokens?.accessToken || null;
-	},
-
-	fetchUserPermissions: async () => {
-		try {
-			console.log('📡 Obteniendo usuario y permisos del backend...');
-			console.log('🔍 Estado actual tokens:', get().tokens);
-
-			const response = await authService.getMe();
-			console.log('📦 Respuesta completa del backend:', response);
-
-			// El backend puede devolver { user, abilities } o un objeto usuario plano con abilities.
-			// Normalizamos ambas formas aquí.
-			const rawUser: any = (response as any).user ?? response;
-			let abilities =
-				(response as any).abilities ?? rawUser?.abilities ?? [];
-
-			// Mapear shape de rol { id, roleName } -> { roleId, roleName }
-			const normalizedRole = rawUser?.role
-				? {
-						roleId:
-							(rawUser.role.roleId as number) ??
-							(rawUser.role.id as number),
-						roleName: rawUser.role.roleName,
-				  }
-				: undefined;
-
-			const backendUser = rawUser
-				? {
-						userId: rawUser.userId,
-						email: rawUser.email,
-						firstName: rawUser.firstName ?? '',
-						lastName: rawUser.lastName ?? '',
-						cognitoId:
-							(rawUser.cognitoId as string) ??
-							(rawUser.externalAuthId as string),
-						role:
-							normalizedRole ??
-							({ roleId: 0, roleName: 'Student' } as any),
-						createdAt: rawUser.createdAt,
-						updatedAt: rawUser.updatedAt,
-				  }
-				: null;
-
-			console.log('✅ Usuario normalizado del backend:', backendUser);
-			console.log('🔐 Permisos recibidos:', abilities);
-
-			// Construir ability desde las reglas del backend
-			const ability = buildAbilityFrom(abilities);
-
-			set({ backendUser, ability });
-
-			console.log('✅ Permisos configurados correctamente');
-			console.log('🔍 Estado después de set:', {
-				backendUser: get().backendUser,
-				ability: get().ability.rules,
-			});
-		} catch (error: any) {
-			console.error('❌ Error al obtener permisos:', error);
-			console.error('❌ Detalle del error:', {
-				message: error.message,
-				status: error.status,
-				response: error.response,
-			});
-
-			// Si es 401, limpiar sesión y redirigir a login
-			if (error.message?.includes('401')) {
-				console.log('🔒 Token expirado, limpiando sesión...');
-				await get().logout();
-				return;
-			}
-
-			// Para otros errores, mantener ability vacío
-			set({
-				backendUser: null,
-				ability: createEmptyAbility(),
-			});
-		}
-	},
+      // Para otros errores, mantener ability vacío
+      set({
+        backendUser: null,
+        ability: createEmptyAbility(),
+      });
+    }
+  },
 }));

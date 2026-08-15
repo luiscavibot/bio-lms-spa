@@ -31,7 +31,6 @@ export function Login() {
 	// Redirigir cuando el login sea exitoso (sin bloquear por permisos)
 	useEffect(() => {
 		if (isAuthenticated) {
-			console.log('✅ Usuario autenticado, redirigiendo...');
 			navigate('/');
 		}
 	}, [isAuthenticated, navigate]);
@@ -42,25 +41,25 @@ export function Login() {
 
 		// Si ya está autenticado, no intentar signIn de nuevo
 		if (isAuthenticated) {
-			console.log(
-				'ℹ️ Usuario ya autenticado, refrescando permisos y navegando'
-			);
 			await fetchUserPermissions();
 			return;
 		}
 
-		console.log('🔐 Intentando login...');
 		await login(email, password);
 
-		// Obtener permisos del backend DESPUÉS del login exitoso
-		console.log('📡 Obteniendo permisos del usuario...');
-		await fetchUserPermissions();
-		console.log('✅ Permisos obtenidos, redirigiendo...');
+		// El estado del hook pertenece al render anterior; consultar el store evita
+		// pedir permisos si Cognito rechazó el login o exige cambiar la contraseña.
+		if (useAuthStore.getState().isAuthenticated) {
+			await fetchUserPermissions();
+		}
 		// La navegación se maneja automáticamente cuando isAuthenticated cambia
 	};
 
 	const handlePasswordChange = async (newPassword: string) => {
 		await confirmNewPassword(newPassword);
+		if (useAuthStore.getState().isAuthenticated) {
+			await fetchUserPermissions();
+		}
 		// La navegación se maneja automáticamente cuando isAuthenticated cambia
 	};
 
@@ -189,7 +188,7 @@ export function Login() {
 			{/* Footer */}
 			<div className="absolute bottom-4 text-center w-full">
 				<p className="text-sm text-gray-500">
-					© 2025 Facultad de Ciencias Biológicas - UNMSM
+					© {new Date().getFullYear()} Facultad de Ciencias Biológicas - UNMSM
 				</p>
 			</div>
 		</div>

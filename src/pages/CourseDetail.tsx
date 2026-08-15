@@ -1,334 +1,507 @@
-import { useParams, Link } from 'react-router-dom';
-import { useMemo } from 'react';
+import { FileUp, Plus, UploadCloud } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
-	ArrowLeft,
-	MapPin,
-	Users,
-	Clock,
-	ExternalLink,
-	Download,
-} from 'lucide-react';
-import { useAcademicStore } from '@/store/academicStoreNew';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useUserRole } from "@/hooks/usePermissions";
 import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { getMaterialIcon } from '@/lib/materialIcons';
+  repositoryService,
+  type Material,
+  type MaterialCategory,
+  type Offering,
+  type Week,
+} from "@/services/repositoryService";
+
+const materialLabels: Record<MaterialCategory, string> = {
+  EXTERNAL_LINK: "Enlace externo",
+  PRACTICE_FILE: "Archivo de prácticas",
+  CLASS_SLIDES: "Diapositivas de clase",
+};
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+    .format(new Date(value))
+    .replace(".", "");
+}
+
+function NewMaterialDialog({
+  weekId,
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  weekId?: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}) {
+  const [category, setCategory] = useState<MaterialCategory | "">("");
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File>();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setCategory("");
+      setTitle("");
+      setUrl("");
+      setFile(undefined);
+      setError("");
+    }
+  }, [open]);
+
+  const save = async () => {
+    if (!weekId || !category || !title.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      if (category === "EXTERNAL_LINK") {
+        if (!url.trim()) throw new Error("Ingresa la dirección del enlace");
+        await repositoryService.createLink({
+          weekId,
+          title: title.trim(),
+          externalLinkUrl: url.trim(),
+        });
+      } else {
+        if (!file) throw new Error("Selecciona un archivo");
+        await repositoryService.uploadMaterial({
+          weekId,
+          title: title.trim(),
+          materialCategory: category,
+          file,
+        });
+      }
+      onOpenChange(false);
+      onCreated();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo guardar el material",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="repo-material-dialog">
+        <DialogHeader>
+          <DialogTitle>Nuevo material</DialogTitle>
+          <DialogDescription>
+            Selecciona el tipo y completa la información del material.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="repo-form-field">
+          <span>Tipo de material</span>
+          <select
+            value={category}
+            onChange={(event) =>
+              setCategory(event.target.value as MaterialCategory)
+            }
+          >
+            <option value="">Seleccionar</option>
+            {Object.entries(materialLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {category && (
+          <label className="repo-form-field">
+            <span>Título del material</span>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Ej. Clase 05: Investigación científica"
+            />
+          </label>
+        )}
+        {category === "EXTERNAL_LINK" && (
+          <label className="repo-form-field">
+            <span>Dirección web</span>
+            <input
+              type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://…"
+            />
+          </label>
+        )}
+        {category && category !== "EXTERNAL_LINK" && (
+          <div>
+            <p className="repo-upload-label">Cargar archivo</p>
+            <label className="repo-dropzone">
+              <UploadCloud aria-hidden="true" />
+              <strong>
+                {file ? file.name : "Arrastra aquí o selecciona un archivo"}
+              </strong>
+              <span>
+                PDF, PPT/PPTX, DOC/DOCX, XLS/XLSX, imágenes o video (máx. 25 MB)
+              </span>
+              <input
+                type="file"
+                onChange={(event) => setFile(event.target.files?.[0])}
+                accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.mp4"
+              />
+            </label>
+          </div>
+        )}
+        {error && <div className="repo-alert repo-alert--error">{error}</div>}
+        <button
+          type="button"
+          className="repo-primary-button repo-material-submit"
+          onClick={save}
+          disabled={
+            saving ||
+            !category ||
+            !title.trim() ||
+            (category === "EXTERNAL_LINK" ? !url.trim() : !file)
+          }
+        >
+          {saving ? "Subiendo…" : "Subir material"}
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditMaterialDialog({
+  material,
+  onOpenChange,
+  onSaved,
+}: {
+  material: Material | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTitle(material?.title || "");
+    setUrl(material?.externalLinkUrl || "");
+    setError("");
+  }, [material]);
+
+  const save = async () => {
+    if (!material || !title.trim()) return;
+    setSaving(true);
+    try {
+      await repositoryService.updateMaterial(material.id, {
+        title: title.trim(),
+        ...(material.materialType === "LINK"
+          ? { externalLinkUrl: url.trim() }
+          : {}),
+      });
+      onOpenChange(false);
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo editar el material",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!material} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar material</DialogTitle>
+          <DialogDescription>
+            Actualiza la información visible del recurso.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="repo-form-field">
+          <span>Título</span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </label>
+        {material?.materialType === "LINK" && (
+          <label className="repo-form-field">
+            <span>Dirección web</span>
+            <input
+              type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+          </label>
+        )}
+        {error && <div className="repo-alert repo-alert--error">{error}</div>}
+        <button
+          type="button"
+          className="repo-primary-button"
+          onClick={save}
+          disabled={saving || !title.trim()}
+        >
+          {saving ? "Guardando…" : "Guardar cambios"}
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function CourseDetail() {
-	const { blockId } = useParams<{ blockId: string }>();
-	const getBlockDetail = useAcademicStore((state) => state.getBlockDetail);
+  const { offeringId } = useParams<{ offeringId: string }>();
+  const role = useUserRole();
+  const canManage = role === "Admin" || role === "Teacher";
+  const [offering, setOffering] = useState<Offering>();
+  const [blockId, setBlockId] = useState("");
+  const [weeks, setWeeks] = useState<Week[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [newMaterialWeekId, setNewMaterialWeekId] = useState<number>();
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
 
-	const blockData = useMemo(() => {
-		if (!blockId) return null;
-		return getBlockDetail(parseInt(blockId));
-	}, [blockId, getBlockDetail]);
+  useEffect(() => {
+    if (!offeringId) return;
+    setLoading(true);
+    repositoryService
+      .getOffering(Number(offeringId))
+      .then((data) => {
+        setOffering(data);
+        if (data.blocks[0]) setBlockId(String(data.blocks[0].blockId));
+      })
+      .catch((reason: Error) => setError(reason.message))
+      .finally(() => setLoading(false));
+  }, [offeringId]);
 
-	if (!blockId) {
-		return (
-			<div className="text-center py-12">
-				<p className="text-gray-500">Bloque no encontrado</p>
-				<Link
-					to="/"
-					className="text-primary hover:underline mt-4 inline-block"
-				>
-					Volver al Dashboard
-				</Link>
-			</div>
-		);
-	}
+  const loadWeeks = useCallback(async () => {
+    if (!blockId) return setWeeks([]);
+    try {
+      setWeeks(await repositoryService.getWeeks(Number(blockId)));
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo cargar el contenido",
+      );
+    }
+  }, [blockId]);
 
-	if (!blockData) {
-		return (
-			<div className="text-center py-12">
-				<p className="text-gray-500">Cargando...</p>
-			</div>
-		);
-	}
+  useEffect(() => {
+    void loadWeeks();
+  }, [loadWeeks]);
 
-	const { block, course, semester, program, weeks, instructor } = blockData;
+  const addWeek = async () => {
+    const nextWeek =
+      weeks.reduce((maximum, week) => Math.max(maximum, week.weekNumber), 0) +
+      1;
+    try {
+      await repositoryService.createWeek({
+        blockId: Number(blockId),
+        weekNumber: nextWeek,
+      });
+      await loadWeeks();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudo crear la semana",
+      );
+    }
+  };
 
-	if (!block || !course) {
-		return (
-			<div className="text-center py-12">
-				<p className="text-gray-500">Curso no encontrado</p>
-				<Link
-					to="/"
-					className="text-primary hover:underline mt-4 inline-block"
-				>
-					Volver al Dashboard
-				</Link>
-			</div>
-		);
-	}
+  const openMaterial = async (material: Material) => {
+    try {
+      const { url } = await repositoryService.getMaterialAccess(material.id);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.click();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo abrir el material",
+      );
+    }
+  };
 
-	return (
-		<div className="space-y-6">
-			{/* Breadcrumb */}
-			<div className="flex items-center gap-2 text-sm text-gray-600">
-				<Link to="/" className="hover:text-primary transition-colors">
-					<ArrowLeft className="h-4 w-4 inline mr-1" />
-					Volver
-				</Link>
-				{program && semester && (
-					<>
-						<span>/</span>
-						<span>{program.programName}</span>
-						<span>/</span>
-						<span>{semester.semesterName}</span>
-					</>
-				)}
-			</div>
+  const deleteMaterial = async (material: Material) => {
+    if (
+      !window.confirm(
+        `¿Eliminar “${material.title}”? Esta acción no se puede deshacer.`,
+      )
+    )
+      return;
+    try {
+      await repositoryService.deleteMaterial(material.id);
+      await loadWeeks();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo eliminar el material",
+      );
+    }
+  };
 
-			{/* Header del Curso */}
-			<Card>
-				<CardContent className="pt-6">
-					<div className="space-y-4">
-						{/* Título y Código */}
-						<div>
-							<h1 className="text-3xl font-bold text-gray-900 mb-2">
-								{course.courseName}
-								<span className="text-xl font-normal text-gray-500 ml-2">
-									|{' '}
-									{block.blockType === 'THEORY'
-										? 'Teoría'
-										: 'Práctica'}
-								</span>
-							</h1>
-							<div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-								{block.blockType === 'PRACTICE' && (
-									<span className="font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
-										{block.name}
-									</span>
-								)}
-								<span className="text-gray-500">
-									{course.credits} créditos
-								</span>
-							</div>
-						</div>
+  if (loading)
+    return (
+      <div className="repo-page-state">
+        <span className="repo-spinner" />
+        Cargando curso…
+      </div>
+    );
+  if (!offering)
+    return <div className="repo-empty">{error || "El curso no existe."}</div>;
 
-						{/* Información del Bloque */}
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-							{instructor && (
-								<div className="flex items-start gap-3">
-									<div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-										<Users className="h-5 w-5 text-primary" />
-									</div>
-									<div>
-										<p className="text-xs text-gray-500">
-											Docente
-										</p>
-										<p className="text-sm font-medium text-gray-900">
-											{instructor.firstName}{' '}
-											{instructor.lastName}
-										</p>
-									</div>
-								</div>
-							)}
+  return (
+    <section>
+      <div className="repo-breadcrumb">
+        <Link to="/">Cursos</Link>
+        <span>›</span>
+        <span>{offering.courseName}</span>
+      </div>
+      <div className="repo-course-heading">
+        <div>
+          <div className="repo-title-line">
+            <h1>{offering.courseName}</h1>
+            <span>
+              {offering.academicLevel === "UNDERGRADUATE"
+                ? "Pregrado"
+                : "Posgrado"}
+            </span>
+          </div>
+          <p>{offering.teacherName || "Docente por asignar"}</p>
+          <p>{offering.programName}</p>
+          <p>{offering.semesterName}</p>
+          {offering.description && (
+            <p className="repo-course-description">{offering.description}</p>
+          )}
+        </div>
+        <label className="repo-select-field repo-block-select">
+          <span>Bloque</span>
+          <select
+            value={blockId}
+            onChange={(event) => setBlockId(event.target.value)}
+          >
+            {offering.blocks.map((block) => (
+              <option key={block.blockId} value={block.blockId}>
+                {block.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-							<div className="flex items-start gap-3">
-								<div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-									<Clock className="h-5 w-5 text-primary" />
-								</div>
-								<div>
-									<p className="text-xs text-gray-500">
-										Horario
-									</p>
-									<p className="text-sm font-medium text-gray-900">
-										{block.blockType === 'THEORY'
-											? 'Lun-Mié 10:00-12:00'
-											: 'Mar-Jue 14:00-17:00'}
-									</p>
-								</div>
-							</div>
-
-							{block.classroomNumber && (
-								<div className="flex items-start gap-3">
-									<div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-										<MapPin className="h-5 w-5 text-primary" />
-									</div>
-									<div>
-										<p className="text-xs text-gray-500">
-											Aula
-										</p>
-										<p className="text-sm font-medium text-gray-900">
-											{block.classroomNumber}
-										</p>
-									</div>
-								</div>
-							)}
-						</div>
-
-						{course.description && (
-							<div className="pt-4 border-t">
-								<p className="text-sm text-gray-600">
-									{course.description}
-								</p>
-							</div>
-						)}
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Accordion de Semanas */}
-			<div className="space-y-4">
-				<h2 className="text-2xl font-semibold text-gray-900">
-					Contenido del Curso
-				</h2>
-
-				{weeks.length === 0 ? (
-					<Card>
-						<CardContent className="py-12 text-center text-gray-500">
-							<p>
-								Aún no hay contenido disponible para este curso
-							</p>
-						</CardContent>
-					</Card>
-				) : (
-					<Accordion type="single" collapsible className="space-y-2">
-						{weeks.map((week) => (
-							<AccordionItem
-								key={week.weekId}
-								value={week.weekId.toString()}
-								className="border rounded-lg px-4 bg-white"
-							>
-								<AccordionTrigger className="hover:no-underline">
-									<div className="flex items-center gap-4 text-left">
-										<div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-											<span className="text-sm font-bold text-primary">
-												{week.weekNumber}
-											</span>
-										</div>
-										<div>
-											<h3 className="font-semibold text-gray-900">
-												Semana {week.weekNumber}
-											</h3>
-											{week.topicSummary && (
-												<p className="text-sm text-gray-600 mt-1">
-													{week.topicSummary}
-												</p>
-											)}
-											<p className="text-xs text-gray-500 mt-1">
-												{week.materials.length}{' '}
-												material(es)
-											</p>
-										</div>
-									</div>
-								</AccordionTrigger>
-
-								<AccordionContent>
-									<div className="space-y-2 pt-4">
-										{week.materials.length === 0 ? (
-											<p className="text-sm text-gray-500 text-center py-4">
-												No hay materiales disponibles
-												para esta semana
-											</p>
-										) : (
-											week.materials.map((material) => {
-												const Icon = getMaterialIcon(
-													material.materialType as any
-												);
-												return (
-													<div
-														key={
-															material.materialId
-														}
-														className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-													>
-														<div className="flex items-center gap-3 flex-1 min-w-0">
-															<div className="flex-shrink-0 h-10 w-10 rounded-lg bg-white flex items-center justify-center">
-																<Icon className="h-5 w-5 text-primary" />
-															</div>
-															<div className="flex-1 min-w-0">
-																<h4 className="text-sm font-medium text-gray-900 truncate">
-																	{
-																		material.title
-																	}
-																</h4>
-																{material.fileResource && (
-																	<div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-																		<span>
-																			{
-																				material
-																					.fileResource
-																					.fileName
-																			}
-																		</span>
-																		<span>
-																			•
-																		</span>
-																		<span>
-																			{(
-																				material
-																					.fileResource
-																					.sizeBytes /
-																				1024 /
-																				1024
-																			).toFixed(
-																				2
-																			)}{' '}
-																			MB
-																		</span>
-																	</div>
-																)}
-															</div>
-														</div>
-
-														<div className="flex gap-2 ml-4">
-															{material.externalLinkUrl && (
-																<Button
-																	size="sm"
-																	variant="outline"
-																	asChild
-																>
-																	<a
-																		href={
-																			material.externalLinkUrl
-																		}
-																		target="_blank"
-																		rel="noopener noreferrer"
-																	>
-																		<ExternalLink className="h-4 w-4" />
-																	</a>
-																</Button>
-															)}
-															{material.fileResource &&
-																material
-																	.fileResource
-																	.publicUrl && (
-																	<Button
-																		size="sm"
-																		variant="outline"
-																		asChild
-																	>
-																		<a
-																			href={
-																				material
-																					.fileResource
-																					.publicUrl
-																			}
-																			download
-																		>
-																			<Download className="h-4 w-4" />
-																		</a>
-																	</Button>
-																)}
-														</div>
-													</div>
-												);
-											})
-										)}
-									</div>
-								</AccordionContent>
-							</AccordionItem>
-						))}
-					</Accordion>
-				)}
-			</div>
-		</div>
-	);
+      {error && <div className="repo-alert repo-alert--error">{error}</div>}
+      <div className="repo-weeks-heading">
+        <h2>Semanas</h2>
+        {canManage && (
+          <button
+            type="button"
+            className="repo-outline-button"
+            onClick={addWeek}
+            disabled={!blockId}
+          >
+            <Plus /> Nueva semana
+          </button>
+        )}
+      </div>
+      {weeks.length === 0 ? (
+        <div className="repo-empty">Aún no hay semanas en este bloque.</div>
+      ) : (
+        <div className="repo-week-list">
+          {[...weeks]
+            .sort((a, b) => b.weekNumber - a.weekNumber)
+            .map((week, index) => (
+              <details className="repo-week" key={week.id} open={index === 0}>
+                <summary>Semana {week.weekNumber}</summary>
+                <div className="repo-week__content">
+                  {week.topicSummary && (
+                    <p className="repo-week-topic">{week.topicSummary}</p>
+                  )}
+                  {week.materials.length === 0 && (
+                    <p className="repo-muted-message">
+                      No hay materiales en esta semana.
+                    </p>
+                  )}
+                  {week.materials.map((material) => (
+                    <article className="repo-material-row" key={material.id}>
+                      <div className="repo-material-row__main">
+                        <p className="repo-material-kind">
+                          {materialLabels[material.materialCategory]}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => void openMaterial(material)}
+                        >
+                          {material.title}
+                        </button>
+                        <p className="repo-material-meta">
+                          {formatDate(material.createdAt)} · Subido por{" "}
+                          {material.uploadedBy
+                            ? `${material.uploadedBy.firstName} ${material.uploadedBy.lastName}`.trim()
+                            : "Repositorio"}
+                        </p>
+                      </div>
+                      {canManage && (
+                        <div className="repo-material-actions">
+                          <button
+                            type="button"
+                            className="repo-outline-button"
+                            onClick={() => setEditingMaterial(material)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="repo-text-button repo-text-button--danger"
+                            onClick={() => void deleteMaterial(material)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="repo-outline-button repo-add-material"
+                      onClick={() => setNewMaterialWeekId(week.id)}
+                    >
+                      <FileUp /> Agregar material
+                    </button>
+                  )}
+                </div>
+              </details>
+            ))}
+        </div>
+      )}
+      <NewMaterialDialog
+        weekId={newMaterialWeekId}
+        open={!!newMaterialWeekId}
+        onOpenChange={(open) => !open && setNewMaterialWeekId(undefined)}
+        onCreated={loadWeeks}
+      />
+      <EditMaterialDialog
+        material={editingMaterial}
+        onOpenChange={(open) => !open && setEditingMaterial(null)}
+        onSaved={loadWeeks}
+      />
+    </section>
+  );
 }

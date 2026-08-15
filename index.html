@@ -2,10 +2,10 @@
 <html lang="es">
 	<head>
 		<meta charset="UTF-8" />
-		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-		<!-- Content Security Policy para mayor seguridad -->
+		<!-- CSP compatible con entrega mediante meta; frame-ancestors se configura en el servidor. -->
 		<meta
 			http-equiv="Content-Security-Policy"
 			content="
@@ -15,17 +15,13 @@
 				img-src 'self' data: https:;
 				font-src 'self' data:;
 				connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 https://cognito-idp.us-east-2.amazonaws.com https://*.amazonaws.com ws:;
-				frame-ancestors 'none';
 				base-uri 'self';
 				form-action 'self';
 				worker-src 'self' blob:;
 			"
 		/>
 
-		<!-- Otras medidas de seguridad -->
-		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
-		<meta http-equiv="X-Frame-Options" content="DENY" />
-		<meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+		<!-- Las cabeceras anti-framing y nosniff pertenecen al servidor/CDN. -->
 		<meta name="referrer" content="strict-origin-when-cross-origin" />
 
 		<title>BioRepo - FCB UNMSM</title>
