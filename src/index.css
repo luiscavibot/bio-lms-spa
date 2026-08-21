@@ -85,7 +85,7 @@
       "rlig" 1,
       "calt" 1;
     font-family:
-      Inter,
+      Lato,
       ui-sans-serif,
       system-ui,
       -apple-system,
@@ -97,7 +97,8 @@
   }
   button,
   input,
-  select {
+  select,
+  textarea {
     font: inherit;
   }
   button,
@@ -112,13 +113,19 @@
     @apply sticky top-0 z-40 border-b border-slate-200 bg-slate-100/95 backdrop-blur;
   }
   .repo-header__inner {
-    @apply mx-auto flex h-24 max-w-[1440px] items-center justify-between px-6 lg:px-14;
+    @apply mx-auto flex h-24 w-full max-w-[1280px] items-center justify-between px-5 md:px-10;
   }
   .repo-brand {
-    @apply text-2xl font-bold tracking-tight text-slate-950 md:text-3xl;
+    @apply flex min-w-0 max-w-[20rem] flex-col text-slate-950;
+  }
+  .repo-brand__title {
+    @apply text-base font-bold leading-tight sm:text-lg xl:text-xl;
+  }
+  .repo-brand__subtitle {
+    @apply mt-1 text-xs leading-tight text-slate-600;
   }
   .repo-nav {
-    @apply absolute left-1/2 hidden -translate-x-1/2 items-center gap-12 md:flex;
+    @apply absolute left-1/2 hidden -translate-x-1/2 items-center gap-12 lg:flex;
   }
   .repo-nav-link {
     @apply border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-slate-700 transition-colors hover:text-emerald-700;
@@ -142,10 +149,10 @@
     @apply flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-slate-100;
   }
   .repo-mobile-toggle {
-    @apply rounded-md p-2 hover:bg-slate-200 md:hidden;
+    @apply rounded-md p-2 hover:bg-slate-200 lg:hidden;
   }
   .repo-mobile-nav {
-    @apply flex flex-col gap-1 border-t bg-white p-4 md:hidden;
+    @apply flex flex-col gap-1 border-t bg-white p-4 lg:hidden;
   }
   .repo-mobile-nav a,
   .repo-mobile-nav button {
@@ -282,7 +289,7 @@
     @apply self-center;
   }
   .repo-weeks-heading {
-    @apply flex items-center justify-between border-b border-slate-200 px-4 py-3;
+    @apply flex items-center justify-between border-b border-slate-200 py-3;
   }
   .repo-weeks-heading h2 {
     @apply text-sm font-bold;
@@ -313,7 +320,16 @@
     @apply pb-5;
   }
   .repo-week-topic {
-    @apply border-b px-4 py-3 text-sm text-slate-600;
+    @apply min-w-0 flex-1 text-sm text-slate-600;
+  }
+  .repo-week-topic--empty {
+    @apply italic text-slate-400;
+  }
+  .repo-week-toolbar {
+    @apply grid gap-3 border-b border-slate-200 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center;
+  }
+  .repo-week-actions {
+    @apply flex flex-wrap items-center gap-4;
   }
   .repo-muted-message {
     @apply px-4 py-8 text-center text-sm text-slate-500;
@@ -354,8 +370,15 @@
     @apply text-sm font-medium text-slate-800;
   }
   .repo-form-field input,
-  .repo-form-field select {
+  .repo-form-field select,
+  .repo-form-field textarea {
     @apply h-12 w-full rounded-lg border border-slate-400 bg-white px-4 outline-none transition focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700;
+  }
+  .repo-form-field textarea {
+    @apply h-auto min-h-28 resize-y py-3;
+  }
+  .repo-form-field input:disabled {
+    @apply cursor-not-allowed bg-slate-100 text-slate-500;
   }
   .repo-form-field small {
     @apply text-xs text-slate-500;
@@ -380,6 +403,16 @@
   }
   .repo-primary-button {
     @apply inline-flex h-11 items-center justify-center rounded-md bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300;
+  }
+  .repo-danger-button {
+    @apply inline-flex h-10 items-center justify-center rounded-md bg-red-700 px-5 text-sm font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300;
+  }
+  .repo-confirm-dialog,
+  .repo-maint-dialog {
+    @apply max-h-[90vh] max-w-xl overflow-y-auto rounded-lg border-slate-200 bg-white;
+  }
+  .repo-dialog-footer {
+    @apply mt-2 gap-3;
   }
   .repo-material-submit {
     @apply mx-auto mt-3;
@@ -439,6 +472,21 @@
   .repo-table-action svg {
     @apply h-4 w-4;
   }
+  .repo-table-action--danger {
+    @apply text-red-700;
+  }
+  .repo-status {
+    @apply inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700;
+  }
+  .repo-status--active {
+    @apply bg-emerald-100 text-emerald-900;
+  }
+  .repo-toggle-field {
+    @apply flex items-center gap-3 text-sm font-medium text-slate-800;
+  }
+  .repo-toggle-field input {
+    @apply h-5 w-5 accent-emerald-700;
+  }
   .repo-maint-form {
     @apply flex flex-col gap-7 pb-10;
   }
@@ -461,7 +509,7 @@
 
 @media (max-width: 639px) {
   .repo-header__inner {
-    height: 72px;
+    height: 88px;
   }
   .repo-filters {
     margin-bottom: 2rem;

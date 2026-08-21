@@ -14,7 +14,7 @@
 				style-src 'self' 'unsafe-inline';
 				img-src 'self' data: https:;
 				font-src 'self' data:;
-				connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 https://cognito-idp.us-east-2.amazonaws.com https://*.amazonaws.com ws:;
+				connect-src 'self' %VITE_API_URL% http://localhost:3000 http://127.0.0.1:3000 https://cognito-idp.us-east-2.amazonaws.com https://*.amazonaws.com ws:;
 				base-uri 'self';
 				form-action 'self';
 				worker-src 'self' blob:;
@@ -24,7 +24,7 @@
 		<!-- Las cabeceras anti-framing y nosniff pertenecen al servidor/CDN. -->
 		<meta name="referrer" content="strict-origin-when-cross-origin" />
 
-		<title>BioRepo - FCB UNMSM</title>
+		<title>Repositorio de Materiales Académicos | FCB UNMSM</title>
 	</head>
 	<body>
 		<div id="root"></div>

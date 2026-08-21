@@ -107,6 +107,14 @@ class HttpClient {
     return this.request<T>("DELETE", url, undefined, config);
   }
 
+  deleteWithBody<T>(
+    url: string,
+    data: unknown,
+    config?: RequestConfig,
+  ): Promise<T> {
+    return this.request<T>("DELETE", url, data, config);
+  }
+
   upload<T>(url: string, file: File, config?: RequestConfig): Promise<T> {
     const form = new FormData();
     form.append("file", file);

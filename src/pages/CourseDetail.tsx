@@ -1,4 +1,4 @@
-import { FileUp, Plus, UploadCloud } from "lucide-react";
+import { FileUp, Pencil, Plus, Trash2, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useUserRole } from "@/hooks/usePermissions";
 import {
   repositoryService,
@@ -262,6 +263,78 @@ function EditMaterialDialog({
   );
 }
 
+function EditWeekDialog({
+  week,
+  onOpenChange,
+  onSaved,
+}: {
+  week: Week | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [topicSummary, setTopicSummary] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTopicSummary(week?.topicSummary || "");
+    setError("");
+  }, [week]);
+
+  const save = async () => {
+    if (!week || !topicSummary.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      await repositoryService.updateWeek(week.id, {
+        topicSummary: topicSummary.trim(),
+      });
+      onOpenChange(false);
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo guardar el resumen",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!week} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Resumen de la semana {week?.weekNumber}</DialogTitle>
+          <DialogDescription>
+            Añade una descripción breve de los contenidos de esta semana.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="repo-form-field">
+          <span>Resumen</span>
+          <textarea
+            rows={5}
+            value={topicSummary}
+            onChange={(event) => setTopicSummary(event.target.value)}
+            maxLength={1000}
+            autoFocus
+          />
+        </label>
+        {error && <div className="repo-alert repo-alert--error">{error}</div>}
+        <button
+          type="button"
+          className="repo-primary-button"
+          onClick={() => void save()}
+          disabled={saving || !topicSummary.trim()}
+        >
+          {saving ? "Guardando…" : "Guardar resumen"}
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CourseDetail() {
   const { offeringId } = useParams<{ offeringId: string }>();
   const role = useUserRole();
@@ -273,6 +346,9 @@ export function CourseDetail() {
   const [error, setError] = useState("");
   const [newMaterialWeekId, setNewMaterialWeekId] = useState<number>();
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [editingWeek, setEditingWeek] = useState<Week | null>(null);
+  const [deletingWeek, setDeletingWeek] = useState<Week | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   useEffect(() => {
     if (!offeringId) return;
@@ -318,6 +394,25 @@ export function CourseDetail() {
       setError(
         reason instanceof Error ? reason.message : "No se pudo crear la semana",
       );
+    }
+  };
+
+  const confirmDeleteWeek = async () => {
+    if (!deletingWeek) return;
+    setDeletePending(true);
+    setError("");
+    try {
+      await repositoryService.deleteWeek(deletingWeek.id);
+      setDeletingWeek(null);
+      await loadWeeks();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo eliminar la semana",
+      );
+    } finally {
+      setDeletePending(false);
     }
   };
 
@@ -430,9 +525,36 @@ export function CourseDetail() {
               <details className="repo-week" key={week.id} open={index === 0}>
                 <summary>Semana {week.weekNumber}</summary>
                 <div className="repo-week__content">
-                  {week.topicSummary && (
-                    <p className="repo-week-topic">{week.topicSummary}</p>
-                  )}
+                  <div className="repo-week-toolbar">
+                    <p
+                      className={
+                        week.topicSummary
+                          ? "repo-week-topic"
+                          : "repo-week-topic repo-week-topic--empty"
+                      }
+                    >
+                      {week.topicSummary || "Sin resumen de la semana."}
+                    </p>
+                    {canManage && (
+                      <div className="repo-week-actions">
+                        <button
+                          type="button"
+                          className="repo-table-action"
+                          onClick={() => setEditingWeek(week)}
+                        >
+                          <Pencil />
+                          {week.topicSummary ? "Editar resumen" : "Añadir resumen"}
+                        </button>
+                        <button
+                          type="button"
+                          className="repo-table-action repo-table-action--danger"
+                          onClick={() => setDeletingWeek(week)}
+                        >
+                          <Trash2 /> Eliminar semana
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {week.materials.length === 0 && (
                     <p className="repo-muted-message">
                       No hay materiales en esta semana.
@@ -501,6 +623,19 @@ export function CourseDetail() {
         material={editingMaterial}
         onOpenChange={(open) => !open && setEditingMaterial(null)}
         onSaved={loadWeeks}
+      />
+      <EditWeekDialog
+        week={editingWeek}
+        onOpenChange={(open) => !open && setEditingWeek(null)}
+        onSaved={loadWeeks}
+      />
+      <ConfirmDialog
+        open={!!deletingWeek}
+        onOpenChange={(open) => !open && setDeletingWeek(null)}
+        title={`Eliminar semana ${deletingWeek?.weekNumber || ""}`}
+        description="Se eliminarán también todos los materiales de esta semana. Esta acción no se puede deshacer."
+        pending={deletePending}
+        onConfirm={confirmDeleteWeek}
       />
     </section>
   );

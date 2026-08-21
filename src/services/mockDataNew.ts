@@ -115,13 +115,13 @@ export const mockCourses: Course[] = [
 export const mockSemesters: Semester[] = [
 	{
 		semesterId: 1,
-		semesterName: '2024-1',
+		semesterName: '2024-I',
 		startDate: new Date('2024-03-01'),
 		endDate: new Date('2024-07-31'),
 	},
 	{
 		semesterId: 2,
-		semesterName: '2024-2',
+		semesterName: '2024-II',
 		startDate: new Date('2024-08-01'),
 		endDate: new Date('2024-12-20'),
 	},

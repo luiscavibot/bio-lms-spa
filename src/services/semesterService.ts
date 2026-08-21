@@ -28,7 +28,6 @@ export interface UpdateSemesterDto {
 	period?: number;
 	startDate?: string;
 	endDate?: string;
-	isActive?: boolean;
 }
 
 export interface SemesterListResponse {

@@ -32,8 +32,15 @@ export function Layout() {
     <div className="min-h-screen bg-white text-slate-900">
       <header className="repo-header">
         <div className="repo-header__inner">
-          <NavLink to="/" className="repo-brand" aria-label="Ir a cursos">
-            Repositorio
+          <NavLink
+            to="/"
+            className="repo-brand"
+            aria-label="Repositorio de Materiales Académicos - Facultad de Ciencias Biológicas - UNMSM"
+          >
+            <span className="repo-brand__title">Repositorio de Materiales Académicos</span>
+            <span className="repo-brand__subtitle">
+              Facultad de Ciencias Biológicas - UNMSM
+            </span>
           </NavLink>
           <nav className="repo-nav" aria-label="Navegación principal">
             <NavLink to="/" end className={linkClass}>
@@ -45,7 +52,7 @@ export function Layout() {
               </NavLink>
             )}
           </nav>
-          <div className="relative hidden sm:block">
+          <div className="relative hidden lg:block">
             <details className="repo-account">
               <summary>
                 <UserRound size={18} aria-hidden="true" />

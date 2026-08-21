@@ -80,7 +80,7 @@ export function Login() {
 					</div>
 					<div>
 						<CardTitle className="text-3xl font-bold text-primary">
-							Repositorio Académico
+							Repositorio de Materiales Académicos
 						</CardTitle>
 						<CardDescription className="text-base mt-2">
 							Facultad de Ciencias Biológicas - UNMSM

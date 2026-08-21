@@ -50,6 +50,8 @@ export interface Program {
 export interface Semester {
   semesterId: number;
   semesterName: string;
+  year: number;
+  period: number;
   startDate: string;
   endDate: string;
   isActive: boolean;
@@ -58,6 +60,8 @@ export interface Semester {
 export interface Teacher {
   userId: number;
   fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   code?: string;
 }
@@ -115,7 +119,7 @@ export const repositoryService = {
   createOffering(data: {
     courseName: string;
     courseCode?: string;
-    description?: string;
+    description: string;
     credits?: number;
     programId: number;
     semesterId: number;
@@ -129,6 +133,21 @@ export const repositoryService = {
   },
   deleteOffering(id: number) {
     return httpClient.delete<void>(`${API}/course-offerings/${id}`);
+  },
+  updateCourse(
+    id: number,
+    data: {
+      courseName: string;
+      courseCode: string;
+      description: string;
+      credits: number;
+      programId: number;
+    },
+  ) {
+    return httpClient.put(`${API}/courses/${id}`, data);
+  },
+  deleteCourse(id: number) {
+    return httpClient.delete(`${API}/courses/${id}`);
   },
   getPrograms() {
     return httpClient.get<{ programs: Program[]; total: number }>(
@@ -144,6 +163,20 @@ export const repositoryService = {
   }) {
     return httpClient.post<Program>(`${API}/programs`, data);
   },
+  updateProgram(
+    id: number,
+    data: {
+      programName: string;
+      programCode: string;
+      academicLevel: AcademicLevel;
+      degreeType: Program["degreeType"];
+    },
+  ) {
+    return httpClient.put<Program>(`${API}/programs/${id}`, data);
+  },
+  deleteProgram(id: number) {
+    return httpClient.delete<void>(`${API}/programs/${id}`);
+  },
   getFaculties() {
     return httpClient.get<{ faculties: { id: number; facultyName: string }[] }>(
       `${API}/faculties`,
@@ -153,6 +186,28 @@ export const repositoryService = {
     return httpClient.get<{ semesters: Semester[]; total: number }>(
       `${API}/semesters`,
     );
+  },
+  createSemester(data: {
+    year: number;
+    period: number;
+    startDate: string;
+    endDate: string;
+  }) {
+    return httpClient.post<Semester>(`${API}/semesters`, data);
+  },
+  updateSemester(
+    id: number,
+    data: {
+      year: number;
+      period: number;
+      startDate: string;
+      endDate: string;
+    },
+  ) {
+    return httpClient.put<Semester>(`${API}/semesters/${id}`, data);
+  },
+  deleteSemester(id: number) {
+    return httpClient.delete<void>(`${API}/semesters/${id}`);
   },
   getTeachers() {
     return httpClient.get<{ users: Teacher[]; total: number }>(
@@ -172,6 +227,14 @@ export const repositoryService = {
       family_name: data.familyName,
       temporaryPassword: data.temporaryPassword,
       sendWelcomeEmail: true,
+    });
+  },
+  updateTeacher(id: number, data: { firstName: string; lastName: string }) {
+    return httpClient.patch(`${API}/users/${id}`, data);
+  },
+  deleteTeacher(email: string) {
+    return httpClient.deleteWithBody(`${API}/auth/cognito/delete-user`, {
+      email,
     });
   },
   resendTeacherInvitation(email: string) {
