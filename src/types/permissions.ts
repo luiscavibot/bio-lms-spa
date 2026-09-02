@@ -5,7 +5,7 @@
 
 // ==================== ROLES ====================
 
-export type RoleName = 'Admin' | 'Teacher';
+export type RoleName = 'Admin' | 'Teacher' | 'Student';
 
 export interface Role {
 	roleId: number;

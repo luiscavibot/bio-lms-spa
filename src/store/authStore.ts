@@ -292,7 +292,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (
         !normalizedRole ||
-        !["Admin", "Teacher"].includes(normalizedRole.roleName)
+        !["Admin", "Teacher", "Student"].includes(normalizedRole.roleName)
       ) {
         throw new Error("El usuario no tiene un rol habilitado en BioRepo");
       }

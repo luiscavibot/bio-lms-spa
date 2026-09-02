@@ -18,6 +18,7 @@ export type MaterialTypeValue =
 export const UserRole = {
 	TEACHER: 'Teacher',
 	ADMIN: 'Admin',
+	STUDENT: 'Student',
 } as const;
 
 export type UserRoleValue = (typeof UserRole)[keyof typeof UserRole];

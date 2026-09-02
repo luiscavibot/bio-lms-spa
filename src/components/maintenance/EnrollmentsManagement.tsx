@@ -1,351 +1,333 @@
-/**
- * Gestión de Matrículas
- */
-
-import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
-	enrollmentService,
-	type EnrollmentDto,
-	type StudentBasicDto,
-	type CourseOfferingBasicDto,
-} from '@/services/enrollmentService';
+  repositoryService,
+  type Enrollment,
+  type Offering,
+  type Student,
+} from "@/services/repositoryService";
 
-interface EnrollmentForm {
-	studentId: number;
-	courseOfferingId: number;
+const statusLabels: Record<Enrollment["status"], string> = {
+  ACTIVE: "Activa",
+  COMPLETED: "Completada",
+  DROPPED: "Retirada",
+  WITHDRAWN: "Retirada",
+};
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("es-PE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(date);
 }
 
 export function EnrollmentsManagement() {
-	const [enrollments, setEnrollments] = useState<EnrollmentDto[]>([]);
-	const [filteredEnrollments, setFilteredEnrollments] = useState<
-		EnrollmentDto[]
-	>([]);
-	const [students, setStudents] = useState<StudentBasicDto[]>([]);
-	const [courseOfferings, setCourseOfferings] = useState<
-		CourseOfferingBasicDto[]
-	>([]);
-	const [search, setSearch] = useState('');
-	const [loading, setLoading] = useState(false);
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [formData, setFormData] = useState<EnrollmentForm>({
-		studentId: 0,
-		courseOfferingId: 0,
-	});
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({ userId: "", courseOfferingId: "" });
+  const [deletingEnrollment, setDeletingEnrollment] =
+    useState<Enrollment | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
-	useEffect(() => {
-		loadEnrollments();
-		loadStudentsAndOfferings();
-	}, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [enrollmentData, studentData, offeringData] = await Promise.all([
+        repositoryService.getEnrollments(),
+        repositoryService.getStudents(),
+        repositoryService.getOfferings(),
+      ]);
+      setEnrollments(enrollmentData.enrollments);
+      setStudents(studentData.users);
+      setOfferings(offeringData.offerings);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudieron cargar las matrículas",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-	useEffect(() => {
-		const filtered = enrollments.filter(
-			(enrollment) =>
-				enrollment.studentName
-					.toLowerCase()
-					.includes(search.toLowerCase()) ||
-				enrollment.studentCode.includes(search) ||
-				enrollment.courseName
-					.toLowerCase()
-					.includes(search.toLowerCase()) ||
-				enrollment.courseCode
-					.toLowerCase()
-					.includes(search.toLowerCase())
-		);
-		setFilteredEnrollments(filtered);
-	}, [search, enrollments]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-	const loadEnrollments = async () => {
-		setLoading(true);
-		try {
-			const data = await enrollmentService.getAll();
-			setEnrollments(data.enrollments);
-		} catch (error) {
-			console.error('Error al cargar matrículas:', error);
-			alert(
-				'Error al cargar las matrículas. Por favor, intenta de nuevo.'
-			);
-		} finally {
-			setLoading(false);
-		}
-	};
+  const filteredEnrollments = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return enrollments.filter(
+      (enrollment) =>
+        !normalizedSearch ||
+        enrollment.studentName.toLowerCase().includes(normalizedSearch) ||
+        enrollment.studentCode.toLowerCase().includes(normalizedSearch) ||
+        enrollment.courseName.toLowerCase().includes(normalizedSearch) ||
+        enrollment.courseCode.toLowerCase().includes(normalizedSearch),
+    );
+  }, [enrollments, search]);
 
-	const loadStudentsAndOfferings = async () => {
-		try {
-			const [studentsData, offeringsData] = await Promise.all([
-				enrollmentService.getStudents(),
-				enrollmentService.getCourseOfferings(),
-			]);
-			setStudents(studentsData.students);
-			setCourseOfferings(offeringsData.offerings);
-		} catch (error) {
-			console.error('Error al cargar datos:', error);
-		}
-	};
+  const availableOfferings = useMemo(() => {
+    if (!form.userId) return offerings;
+    const activeOfferingIds = new Set(
+      enrollments
+        .filter(
+          (enrollment) =>
+            enrollment.userId === Number(form.userId) &&
+            enrollment.status === "ACTIVE",
+        )
+        .map((enrollment) => enrollment.courseOfferingId),
+    );
+    return offerings.filter(
+      (offering) => !activeOfferingIds.has(offering.offeringId),
+    );
+  }, [enrollments, form.userId, offerings]);
 
-	const handleOpenDialog = () => {
-		setFormData({
-			studentId: 0,
-			courseOfferingId: 0,
-		});
-		setDialogOpen(true);
-	};
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setForm({ userId: "", courseOfferingId: "" });
+  };
 
-	const handleSave = async () => {
-		try {
-			await enrollmentService.create(formData);
-			setDialogOpen(false);
-			loadEnrollments();
-		} catch (error) {
-			console.error('Error al crear matrícula:', error);
-			alert(
-				'Error al crear la matrícula. Verifica que el estudiante no esté ya matriculado.'
-			);
-		}
-	};
+  const saveEnrollment = async () => {
+    if (!form.userId || !form.courseOfferingId) {
+      setError("Selecciona un alumno y un curso.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await repositoryService.createEnrollment({
+        userId: Number(form.userId),
+        courseOfferingId: Number(form.courseOfferingId),
+      });
+      closeDialog();
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo crear la matrícula",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
-	const handleDelete = async (enrollmentId: number) => {
-		if (!confirm('¿Estás seguro de eliminar esta matrícula?')) return;
+  const confirmDeleteEnrollment = async () => {
+    if (!deletingEnrollment) return;
+    setDeletePending(true);
+    setError("");
+    try {
+      await repositoryService.deleteEnrollment(
+        deletingEnrollment.enrollmentId,
+      );
+      setDeletingEnrollment(null);
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo retirar la matrícula",
+      );
+    } finally {
+      setDeletePending(false);
+    }
+  };
 
-		try {
-			await enrollmentService.delete(enrollmentId);
-			loadEnrollments();
-		} catch (error) {
-			console.error('Error al eliminar matrícula:', error);
-			alert('Error al eliminar la matrícula.');
-		}
-	};
+  return (
+    <div className="repo-maint-content">
+      <div className="repo-section-heading">
+        <h2>Matrículas</h2>
+        <button
+          type="button"
+          className="repo-outline-button"
+          onClick={() => setDialogOpen(true)}
+          disabled={loading || students.length === 0 || offerings.length === 0}
+          title={
+            students.length === 0
+              ? "Primero agrega un alumno"
+              : offerings.length === 0
+                ? "Primero agrega un curso"
+                : undefined
+          }
+        >
+          <Plus /> Nueva matrícula
+        </button>
+      </div>
 
-	const getStatusLabel = (status: string) => {
-		const labels = {
-			active: 'Activa',
-			dropped: 'Retirada',
-			completed: 'Completada',
-		};
-		return labels[status as keyof typeof labels] || status;
-	};
+      {error && <div className="repo-alert repo-alert--error">{error}</div>}
 
-	const getStatusColor = (status: string) => {
-		const colors = {
-			active: 'bg-green-100 text-green-800',
-			dropped: 'bg-red-100 text-red-800',
-			completed: 'bg-blue-100 text-blue-800',
-		};
-		return colors[status as keyof typeof colors] || '';
-	};
+      <label className="repo-search-field">
+        <Search />
+        <input
+          type="search"
+          placeholder="Buscar alumno o curso"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </label>
 
-	return (
-		<div className="space-y-4">
-			<div className="flex items-center gap-4">
-				<div className="relative flex-1">
-					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-					<Input
-						placeholder="Buscar por estudiante o curso..."
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="pl-9"
-					/>
-				</div>
-				<Button onClick={handleOpenDialog} className="gap-2">
-					<Plus className="w-4 h-4" />
-					Nueva Matrícula
-				</Button>
-			</div>
+      <div className="repo-data-table-wrap">
+        <table className="repo-data-table">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Curso</th>
+              <th>Semestre</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={6}>Cargando…</td>
+              </tr>
+            ) : filteredEnrollments.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="repo-empty">
+                  {search
+                    ? "No se encontraron matrículas."
+                    : "Aún no hay matrículas registradas."}
+                </td>
+              </tr>
+            ) : (
+              filteredEnrollments.map((enrollment) => (
+                <tr key={enrollment.enrollmentId}>
+                  <td>
+                    <strong className="block">{enrollment.studentName}</strong>
+                    <small className="block text-slate-500">
+                      {enrollment.studentCode}
+                    </small>
+                  </td>
+                  <td>
+                    <strong className="block">{enrollment.courseName}</strong>
+                    <small className="block text-slate-500">
+                      {enrollment.courseCode}
+                    </small>
+                  </td>
+                  <td>{enrollment.semesterName}</td>
+                  <td>
+                    <span
+                      className={
+                        enrollment.status === "ACTIVE"
+                          ? "repo-status repo-status--active"
+                          : "repo-status"
+                      }
+                    >
+                      {statusLabels[enrollment.status]}
+                    </span>
+                  </td>
+                  <td>{formatDate(enrollment.enrollmentDate)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="repo-table-action repo-table-action--danger"
+                      onClick={() => setDeletingEnrollment(enrollment)}
+                      disabled={enrollment.status !== "ACTIVE"}
+                    >
+                      <Trash2 /> Retirar
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-			<div className="border rounded-lg overflow-hidden">
-				<table className="w-full">
-					<thead className="bg-muted">
-						<tr>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Estudiante
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Código
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Curso
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Semestre
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Estado
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Fecha
-							</th>
-							<th className="px-4 py-3 text-left text-sm font-medium">
-								Acciones
-							</th>
-						</tr>
-					</thead>
-					<tbody>
-						{loading ? (
-							<tr>
-								<td
-									colSpan={7}
-									className="text-center py-8 text-muted-foreground"
-								>
-									Cargando...
-								</td>
-							</tr>
-						) : filteredEnrollments.length === 0 ? (
-							<tr>
-								<td
-									colSpan={7}
-									className="text-center py-8 text-muted-foreground"
-								>
-									No se encontraron matrículas
-								</td>
-							</tr>
-						) : (
-							filteredEnrollments.map((enrollment) => (
-								<tr
-									key={enrollment.enrollmentId}
-									className="border-t"
-								>
-									<td className="px-4 py-3">
-										{enrollment.studentName}
-									</td>
-									<td className="px-4 py-3 text-sm">
-										{enrollment.studentCode}
-									</td>
-									<td className="px-4 py-3">
-										<div className="text-sm">
-											<div className="font-medium">
-												{enrollment.courseCode}
-											</div>
-											<div className="text-muted-foreground">
-												{enrollment.courseName}
-											</div>
-										</div>
-									</td>
-									<td className="px-4 py-3">
-										{enrollment.semesterName}
-									</td>
-									<td className="px-4 py-3">
-										<span
-											className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-												enrollment.status
-											)}`}
-										>
-											{getStatusLabel(enrollment.status)}
-										</span>
-									</td>
-									<td className="px-4 py-3 text-sm">
-										{new Date(
-											enrollment.enrollmentDate
-										).toLocaleDateString()}
-									</td>
-									<td className="px-4 py-3">
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={() =>
-												handleDelete(
-													enrollment.enrollmentId
-												)
-											}
-											className="text-destructive hover:text-destructive"
-										>
-											<Trash2 className="w-4 h-4" />
-										</Button>
-									</td>
-								</tr>
-							))
-						)}
-					</tbody>
-				</table>
-			</div>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
+      >
+        <DialogContent className="repo-maint-dialog">
+          <DialogHeader>
+            <DialogTitle>Nueva matrícula</DialogTitle>
+            <DialogDescription>
+              Asigna un alumno a uno de los cursos disponibles.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="repo-form-field">
+            <span>Alumno</span>
+            <select
+              value={form.userId}
+              onChange={(event) =>
+                setForm({
+                  userId: event.target.value,
+                  courseOfferingId: "",
+                })
+              }
+            >
+              <option value="">Seleccionar alumno</option>
+              {students.map((student) => (
+                <option key={student.userId} value={student.userId}>
+                  {student.fullName} — {student.code || student.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="repo-form-field">
+            <span>Curso</span>
+            <select
+              value={form.courseOfferingId}
+              onChange={(event) =>
+                setForm({ ...form, courseOfferingId: event.target.value })
+              }
+              disabled={!form.userId}
+            >
+              <option value="">Seleccionar curso</option>
+              {availableOfferings.map((offering) => (
+                <option key={offering.offeringId} value={offering.offeringId}>
+                  {offering.courseName} ({offering.courseCode}) —{" "}
+                  {offering.semesterName}
+                </option>
+              ))}
+            </select>
+            {form.userId && availableOfferings.length === 0 && (
+              <small>El alumno ya está matriculado en todos los cursos.</small>
+            )}
+          </label>
+          <button
+            type="button"
+            className="repo-primary-button"
+            onClick={() => void saveEnrollment()}
+            disabled={saving || !form.userId || !form.courseOfferingId}
+          >
+            {saving ? "Matriculando…" : "Matricular alumno"}
+          </button>
+        </DialogContent>
+      </Dialog>
 
-			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Nueva Matrícula</DialogTitle>
-						<DialogDescription>
-							Matricular un estudiante en un curso
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="space-y-4 py-4">
-						<div className="space-y-2">
-							<label className="text-sm font-medium">
-								Estudiante
-							</label>
-							<select
-								value={formData.studentId}
-								onChange={(e) =>
-									setFormData({
-										...formData,
-										studentId: parseInt(e.target.value),
-									})
-								}
-								className="w-full px-3 py-2 border rounded-md"
-							>
-								<option value={0}>
-									Seleccione un estudiante
-								</option>
-								{students.map((student) => (
-									<option
-										key={student.studentId}
-										value={student.studentId}
-									>
-										{student.code} - {student.name}
-									</option>
-								))}
-							</select>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Curso</label>
-							<select
-								value={formData.courseOfferingId}
-								onChange={(e) =>
-									setFormData({
-										...formData,
-										courseOfferingId: parseInt(
-											e.target.value
-										),
-									})
-								}
-								className="w-full px-3 py-2 border rounded-md"
-							>
-								<option value={0}>Seleccione un curso</option>
-								{courseOfferings.map((offering) => (
-									<option
-										key={offering.courseOfferingId}
-										value={offering.courseOfferingId}
-									>
-										{offering.courseCode} -{' '}
-										{offering.courseName} (
-										{offering.semesterName})
-									</option>
-								))}
-							</select>
-						</div>
-					</div>
-
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setDialogOpen(false)}
-						>
-							Cancelar
-						</Button>
-						<Button onClick={handleSave}>Crear Matrícula</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
-	);
+      <ConfirmDialog
+        open={!!deletingEnrollment}
+        onOpenChange={(open) => !open && setDeletingEnrollment(null)}
+        title="Retirar matrícula"
+        description={`Se retirará a “${deletingEnrollment?.studentName || ""}” del curso “${deletingEnrollment?.courseName || ""}”.`}
+        confirmLabel="Retirar"
+        pending={deletePending}
+        onConfirm={confirmDeleteEnrollment}
+      />
+    </div>
+  );
 }

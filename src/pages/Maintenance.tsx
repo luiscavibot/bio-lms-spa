@@ -11,6 +11,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Unauthorized } from "@/pages/Unauthorized";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EnrollmentsManagement } from "@/components/maintenance/EnrollmentsManagement";
+import { StudentsManagement } from "@/components/maintenance/StudentsManagement";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +30,23 @@ import {
   type Teacher,
 } from "@/services/repositoryService";
 
-type Section = "courses" | "programs" | "semesters" | "teachers";
+type Section =
+  | "courses"
+  | "programs"
+  | "semesters"
+  | "teachers"
+  | "students"
+  | "enrollments";
 type View = "list" | "create";
+
+const maintenanceSections: { id: Section; label: string }[] = [
+  { id: "courses", label: "Cursos" },
+  { id: "programs", label: "Programas" },
+  { id: "semesters", label: "Semestres" },
+  { id: "teachers", label: "Docentes" },
+  { id: "students", label: "Alumnos" },
+  { id: "enrollments", label: "Matrículas" },
+];
 
 function generateTemporaryPassword() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -1721,29 +1738,23 @@ export function Maintenance() {
       <h1 className="repo-page-title">Mantenimiento</h1>
       <div className="repo-maint-layout">
         <aside className="repo-maint-sidebar">
-          {(["courses", "programs", "semesters", "teachers"] as Section[]).map(
-            (item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => setSection(item)}
-                className={section === item ? "active" : ""}
-              >
-                {item === "courses"
-                  ? "Cursos"
-                  : item === "programs"
-                    ? "Programas"
-                    : item === "semesters"
-                      ? "Semestres"
-                      : "Docentes"}
-              </button>
-            ),
-          )}
+          {maintenanceSections.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              onClick={() => setSection(item.id)}
+              className={section === item.id ? "active" : ""}
+            >
+              {item.label}
+            </button>
+          ))}
         </aside>
         {section === "courses" && <CoursesSection />}
         {section === "programs" && <ProgramsSection />}
         {section === "semesters" && <SemestersSection />}
         {section === "teachers" && <TeachersSection />}
+        {section === "students" && <StudentsManagement />}
+        {section === "enrollments" && <EnrollmentsManagement />}
       </div>
     </section>
   );

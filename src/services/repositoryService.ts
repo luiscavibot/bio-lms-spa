@@ -66,6 +66,21 @@ export interface Teacher {
   code?: string;
 }
 
+export type Student = Teacher;
+
+export interface Enrollment {
+  enrollmentId: number;
+  userId: number;
+  studentName: string;
+  studentCode: string;
+  courseOfferingId: number;
+  courseName: string;
+  courseCode: string;
+  semesterName: string;
+  enrollmentDate: string;
+  status: "ACTIVE" | "COMPLETED" | "DROPPED" | "WITHDRAWN";
+}
+
 export interface FileResource {
   id: number;
   fileName: string;
@@ -245,6 +260,54 @@ export const repositoryService = {
       email,
       temporaryPassword,
     });
+  },
+  getStudents() {
+    return httpClient.get<{ users: Student[]; total: number }>(
+      `${API}/users/students/list`,
+    );
+  },
+  createStudent(data: {
+    email: string;
+    name: string;
+    familyName: string;
+    temporaryPassword: string;
+  }) {
+    return httpClient.post(`${API}/auth/cognito/create-user`, {
+      email: data.email,
+      userGroup: "Student",
+      name: data.name,
+      family_name: data.familyName,
+      temporaryPassword: data.temporaryPassword,
+      sendWelcomeEmail: true,
+    });
+  },
+  updateStudent(id: number, data: { firstName: string; lastName: string }) {
+    return httpClient.patch(`${API}/users/${id}`, data);
+  },
+  deleteStudent(email: string) {
+    return httpClient.deleteWithBody(`${API}/auth/cognito/delete-user`, {
+      email,
+    });
+  },
+  resendStudentInvitation(email: string) {
+    return httpClient.post(`${API}/auth/cognito/resend-invitation`, { email });
+  },
+  resetStudentTemporaryPassword(email: string, temporaryPassword: string) {
+    return httpClient.post(`${API}/auth/cognito/reset-temporary-password`, {
+      email,
+      temporaryPassword,
+    });
+  },
+  getEnrollments(filters: { semesterId?: number; userId?: number } = {}) {
+    return httpClient.get<{ enrollments: Enrollment[]; total: number }>(
+      `${API}/enrollments${queryString(filters)}`,
+    );
+  },
+  createEnrollment(data: { userId: number; courseOfferingId: number }) {
+    return httpClient.post<Enrollment>(`${API}/enrollments`, data);
+  },
+  deleteEnrollment(id: number) {
+    return httpClient.delete(`${API}/enrollments/${id}`);
   },
   getWeeks(blockId: number) {
     return httpClient.get<Week[]>(`${API}/weeks?blockId=${blockId}`);
