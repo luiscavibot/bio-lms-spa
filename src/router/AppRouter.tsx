@@ -16,6 +16,16 @@ const ForgotPassword = lazy(() =>
     default: module.ForgotPassword,
   })),
 );
+const ImportedSpaces = lazy(() =>
+  import("@/pages/ImportedSpaces").then((module) => ({
+    default: module.ImportedSpaces,
+  })),
+);
+const ImportedSpaceDetail = lazy(() =>
+  import("@/pages/ImportedSpaces").then((module) => ({
+    default: module.ImportedSpaceDetail,
+  })),
+);
 const Login = lazy(() =>
   import("@/pages/Login").then((module) => ({ default: module.Login })),
 );
@@ -96,6 +106,14 @@ export function AppRouter() {
             <Route
               path="/maintenance"
               element={protectedPage(<Maintenance />)}
+            />
+            <Route
+              path="/imported"
+              element={protectedPage(<ImportedSpaces />)}
+            />
+            <Route
+              path="/imported/:spaceId"
+              element={protectedPage(<ImportedSpaceDetail />)}
             />
             <Route path="/library" element={<Navigate to="/" replace />} />
             <Route
