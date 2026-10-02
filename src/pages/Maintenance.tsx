@@ -13,6 +13,8 @@ import { Unauthorized } from "@/pages/Unauthorized";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EnrollmentsManagement } from "@/components/maintenance/EnrollmentsManagement";
 import { StudentsManagement } from "@/components/maintenance/StudentsManagement";
+import { CourseBlocksManagement } from "@/components/maintenance/CourseBlocksManagement";
+import { CurriculumPlansManagement } from "@/components/maintenance/CurriculumPlansManagement";
 import {
   Dialog,
   DialogContent,
@@ -23,16 +25,19 @@ import {
 import {
   repositoryService,
   type AcademicLevel,
-  type BlockType,
+  type CurriculumPlan,
   type Offering,
   type Program,
   type Semester,
   type Teacher,
 } from "@/services/repositoryService";
+import { copyText } from "@/lib/copyText";
 
 type Section =
   | "courses"
+  | "blocks"
   | "programs"
+  | "plans"
   | "semesters"
   | "teachers"
   | "students"
@@ -41,7 +46,9 @@ type View = "list" | "create";
 
 const maintenanceSections: { id: Section; label: string }[] = [
   { id: "courses", label: "Cursos" },
+  { id: "blocks", label: "Bloques" },
   { id: "programs", label: "Programas" },
+  { id: "plans", label: "Planes" },
   { id: "semesters", label: "Semestres" },
   { id: "teachers", label: "Docentes" },
   { id: "students", label: "Alumnos" },
@@ -64,15 +71,28 @@ function InlineError({ message }: { message: string }) {
   ) : null;
 }
 
+function formatCourseDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+    .format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
+    .replace(".", "");
+}
+
 function CoursesSection() {
   const [view, setView] = useState<View>("list");
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [plans, setPlans] = useState<CurriculumPlan[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [search, setSearch] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +105,9 @@ function CoursesSection() {
     description: "",
     credits: "3",
     programId: "",
+    planId: "",
+    startDate: "",
+    endDate: "",
   });
   const [form, setForm] = useState({
     courseName: "",
@@ -92,34 +115,46 @@ function CoursesSection() {
     teacherId: "",
     academicLevel: "" as AcademicLevel | "",
     programId: "",
+    planId: "",
     semesterId: "",
-    blockTypes: [] as BlockType[],
+    practiceBlockCount: "1",
+    startDate: "",
+    endDate: "",
   });
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [offeringData, programData, semesterData, teacherData] =
+      const [offeringData, programData, planData, semesterData, teacherData] =
         await Promise.all([
           repositoryService.getOfferings(),
           repositoryService.getPrograms(),
+          repositoryService.getCurriculumPlans(),
           repositoryService.getSemesters(),
           repositoryService.getTeachers(),
         ]);
       setOfferings(offeringData.offerings);
       setPrograms(programData.programs.filter((program) => program.isActive));
+      setPlans(planData.plans);
       setSemesters(semesterData.semesters);
       setTeachers(teacherData.users);
       const active = semesterData.semesters.find(
         (semester) => semester.isActive,
       );
+      const latestOffering = [...offeringData.offerings].sort(
+        (first, second) => second.offeringId - first.offeringId,
+      )[0];
+      const suggestedStartDate = latestOffering?.startDate || active?.startDate || "";
+      const suggestedEndDate = latestOffering?.endDate || active?.endDate || "";
+      setForm((current) => ({
+        ...current,
+        semesterId: current.semesterId || (active ? String(active.semesterId) : ""),
+        startDate: current.startDate || suggestedStartDate.slice(0, 10),
+        endDate: current.endDate || suggestedEndDate.slice(0, 10),
+      }));
       if (active) {
         setSemesterFilter((current) => current || String(active.semesterId));
-        setForm((current) => ({
-          ...current,
-          semesterId: current.semesterId || String(active.semesterId),
-        }));
       }
     } catch (reason) {
       setError(
@@ -145,23 +180,31 @@ function CoursesSection() {
         return (
           matchesSearch &&
           (!semesterFilter || offering.semesterId === Number(semesterFilter)) &&
-          (!levelFilter || offering.academicLevel === levelFilter)
+          (!levelFilter || offering.academicLevel === levelFilter) &&
+          (!planFilter || offering.planId === Number(planFilter))
         );
       }),
-    [offerings, search, semesterFilter, levelFilter],
+    [offerings, search, semesterFilter, levelFilter, planFilter],
   );
 
   const save = async () => {
     if (
       !form.courseName.trim() ||
       !form.description.trim() ||
+      !form.teacherId ||
       !form.programId ||
+      !form.planId ||
       !form.semesterId ||
-      form.blockTypes.length === 0
+      !form.startDate ||
+      !form.endDate
     ) {
       setError(
-        "Completa el nombre, la descripción, el programa, el semestre y al menos un bloque.",
+        "Completa todos los datos del curso, incluidas las fechas de inicio y fin.",
       );
+      return;
+    }
+    if (form.endDate < form.startDate) {
+      setError("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
       return;
     }
     setSaving(true);
@@ -171,9 +214,12 @@ function CoursesSection() {
         courseName: form.courseName.trim(),
         description: form.description.trim(),
         programId: Number(form.programId),
+        planId: Number(form.planId),
         semesterId: Number(form.semesterId),
-        teacherId: form.teacherId ? Number(form.teacherId) : undefined,
-        blockTypes: form.blockTypes,
+        teacherId: Number(form.teacherId),
+        practiceBlockCount: Number(form.practiceBlockCount),
+        startDate: form.startDate,
+        endDate: form.endDate,
       });
       setForm((current) => ({
         ...current,
@@ -181,7 +227,8 @@ function CoursesSection() {
         description: "",
         teacherId: "",
         programId: "",
-        blockTypes: [],
+        planId: "",
+        practiceBlockCount: "1",
       }));
       setView("list");
       await load();
@@ -205,6 +252,9 @@ function CoursesSection() {
       description: offering.description || "",
       credits: String(offering.credits),
       programId: String(offering.programId),
+      planId: String(offering.planId),
+      startDate: offering.startDate.slice(0, 10),
+      endDate: offering.endDate.slice(0, 10),
     });
   };
 
@@ -215,9 +265,16 @@ function CoursesSection() {
       !editForm.courseCode.trim() ||
       !editForm.description.trim() ||
       !editForm.programId ||
+      !editForm.planId ||
+      !editForm.startDate ||
+      !editForm.endDate ||
       Number(editForm.credits) < 1
     ) {
       setError("Completa todos los datos obligatorios del curso.");
+      return;
+    }
+    if (editForm.endDate < editForm.startDate) {
+      setError("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
       return;
     }
     setSaving(true);
@@ -229,6 +286,11 @@ function CoursesSection() {
         description: editForm.description.trim(),
         credits: Number(editForm.credits),
         programId: Number(editForm.programId),
+        planId: Number(editForm.planId),
+      });
+      await repositoryService.updateOfferingSchedule(editingCourse.offeringId, {
+        startDate: editForm.startDate,
+        endDate: editForm.endDate,
       });
       setEditingCourse(null);
       await load();
@@ -309,14 +371,14 @@ function CoursesSection() {
             />
           </label>
           <label className="repo-form-field">
-            <span>Docente</span>
+            <span>Docente principal</span>
             <select
               value={form.teacherId}
               onChange={(event) =>
                 setForm({ ...form, teacherId: event.target.value })
               }
             >
-              <option value="">Por asignar</option>
+              <option value="">Seleccionar docente</option>
               {teachers.map((teacher) => (
                 <option key={teacher.userId} value={teacher.userId}>
                   {teacher.fullName}
@@ -375,26 +437,67 @@ function CoursesSection() {
               ))}
             </select>
           </label>
-          <fieldset className="repo-checkboxes">
-            <legend>Bloques a visualizar:</legend>
-            {(["THEORY", "PRACTICE"] as BlockType[]).map((type) => (
-              <label key={type}>
-                <input
-                  type="checkbox"
-                  checked={form.blockTypes.includes(type)}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      blockTypes: event.target.checked
-                        ? [...form.blockTypes, type]
-                        : form.blockTypes.filter((item) => item !== type),
-                    })
-                  }
-                />
-                <span>{type === "THEORY" ? "Teoría" : "Práctica"}</span>
-              </label>
-            ))}
-          </fieldset>
+          <div className="repo-form-row">
+            <label className="repo-form-field">
+              <span>Fecha de inicio del curso</span>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(event) =>
+                  setForm({ ...form, startDate: event.target.value })
+                }
+              />
+            </label>
+            <label className="repo-form-field">
+              <span>Fecha de fin del curso</span>
+              <input
+                type="date"
+                min={form.startDate}
+                value={form.endDate}
+                onChange={(event) =>
+                  setForm({ ...form, endDate: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <p className="repo-form-hint">
+            Fechas sugeridas según el último curso configurado. Al guardar se
+            crearán automáticamente todas las semanas del curso y sus bloques.
+          </p>
+          <label className="repo-form-field">
+            <span>Plan curricular</span>
+            <select
+              value={form.planId}
+              onChange={(event) =>
+                setForm({ ...form, planId: event.target.value })
+              }
+            >
+              <option value="">Seleccionar</option>
+              {plans
+                .filter((plan) => plan.isActive)
+                .map((plan) => (
+                  <option key={plan.planId} value={plan.planId}>
+                    {plan.planCode}
+                  </option>
+                ))}
+            </select>
+            <small>Todo curso pertenece a un único plan curricular.</small>
+          </label>
+          <label className="repo-form-field">
+            <span>Bloques de práctica</span>
+            <select
+              value={form.practiceBlockCount}
+              onChange={(event) =>
+                setForm({ ...form, practiceBlockCount: event.target.value })
+              }
+            >
+              <option value="0">Sin práctica</option>
+              <option value="1">1 bloque — Práctica A</option>
+              <option value="2">2 bloques — Prácticas A y B</option>
+              <option value="3">3 bloques — Prácticas A, B y C</option>
+            </select>
+            <small>El bloque de Teoría se crea siempre y es común a todos.</small>
+          </label>
         </div>
       </div>
     );
@@ -447,6 +550,20 @@ function CoursesSection() {
             <option value="POSTGRADUATE">Posgrado</option>
           </select>
         </label>
+        <label className="repo-select-field">
+          <span>Plan curricular</span>
+          <select
+            value={planFilter}
+            onChange={(event) => setPlanFilter(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {plans.map((plan) => (
+              <option key={plan.planId} value={plan.planId}>
+                {plan.planCode}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       <div className="repo-data-table-wrap">
         <table className="repo-data-table">
@@ -454,27 +571,34 @@ function CoursesSection() {
             <tr>
               <th>Nombre del curso</th>
               <th>Programa</th>
+              <th>Plan</th>
               <th>Tipo de programa</th>
               <th>Semestre</th>
+              <th>Fechas</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5}>Cargando…</td>
+                <td colSpan={7}>Cargando…</td>
               </tr>
             ) : filtered.length ? (
               filtered.map((offering) => (
                 <tr key={offering.offeringId}>
                   <td>{offering.courseName}</td>
                   <td>{offering.programName}</td>
+                  <td>{offering.planCode}</td>
                   <td>
                     {offering.academicLevel === "UNDERGRADUATE"
                       ? "Pregrado"
                       : "Posgrado"}
                   </td>
                   <td>{offering.semesterName}</td>
+                  <td>
+                    {formatCourseDate(offering.startDate)} –{" "}
+                    {formatCourseDate(offering.endDate)}
+                  </td>
                   <td>
                     <div className="repo-table-actions">
                       <button
@@ -497,7 +621,7 @@ function CoursesSection() {
               ))
             ) : (
               <tr>
-                <td colSpan={5}>No hay cursos para mostrar.</td>
+                <td colSpan={7}>No hay cursos para mostrar.</td>
               </tr>
             )}
           </tbody>
@@ -511,7 +635,7 @@ function CoursesSection() {
           <DialogHeader>
             <DialogTitle>Editar curso</DialogTitle>
             <DialogDescription>
-              Actualiza la información general del curso.
+              Actualiza la información general y el calendario del curso.
             </DialogDescription>
           </DialogHeader>
           <label className="repo-form-field">
@@ -561,6 +685,54 @@ function CoursesSection() {
               ))}
             </select>
           </label>
+          <label className="repo-form-field">
+            <span>Plan curricular</span>
+            <select
+              value={editForm.planId}
+              onChange={(event) =>
+                setEditForm({ ...editForm, planId: event.target.value })
+              }
+            >
+              {plans
+                .filter(
+                  (plan) =>
+                    plan.isActive || plan.planId === editingCourse?.planId,
+                )
+                .map((plan) => (
+                  <option key={plan.planId} value={plan.planId}>
+                    {plan.planCode}
+                    {plan.isActive ? "" : " — Inactivo"}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="repo-form-row">
+            <label className="repo-form-field">
+              <span>Fecha de inicio del curso</span>
+              <input
+                type="date"
+                value={editForm.startDate}
+                onChange={(event) =>
+                  setEditForm({ ...editForm, startDate: event.target.value })
+                }
+              />
+            </label>
+            <label className="repo-form-field">
+              <span>Fecha de fin del curso</span>
+              <input
+                type="date"
+                min={editForm.startDate}
+                value={editForm.endDate}
+                onChange={(event) =>
+                  setEditForm({ ...editForm, endDate: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <p className="repo-form-hint">
+            El calendario sincroniza las semanas de todos los bloques. No se
+            eliminarán semanas que ya tengan contenido.
+          </p>
           <label className="repo-form-field">
             <span>Descripción del curso</span>
             <textarea
@@ -1384,15 +1556,18 @@ function TeachersSection() {
     setNotice("");
     try {
       const temporaryPassword = generateTemporaryPassword();
-      await repositoryService.resetTeacherTemporaryPassword(
+      const response = await repositoryService.resetTeacherTemporaryPassword(
         email,
         temporaryPassword,
       );
       setCreatedCredentials({ email, password: temporaryPassword });
       setCopied(false);
       setNotice(
-        `Se generó una nueva contraseña temporal para ${email}. Entrégasela de forma segura al docente.`,
+        response.accountProvisioned
+          ? `Se creó y vinculó la cuenta de acceso de ${email}. Entrégale la contraseña temporal de forma segura.`
+          : `Se generó una nueva contraseña temporal para ${email}. Entrégasela de forma segura al docente.`,
       );
+      if (response.accountProvisioned) await load();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -1461,7 +1636,7 @@ function TeachersSection() {
   const copyCredentials = async () => {
     if (!createdCredentials) return;
     try {
-      await navigator.clipboard.writeText(
+      await copyText(
         `Usuario: ${createdCredentials.email}\nContraseña temporal: ${createdCredentials.password}`,
       );
       setCopied(true);
@@ -1597,13 +1772,14 @@ function TeachersSection() {
             <tr>
               <th>Docente</th>
               <th>Correo</th>
+              <th>Acceso</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3}>Cargando…</td>
+                <td colSpan={4}>Cargando…</td>
               </tr>
             ) : filtered.length ? (
               filtered.map((teacher) => (
@@ -1611,17 +1787,38 @@ function TeachersSection() {
                   <td>{teacher.fullName}</td>
                   <td>{teacher.email}</td>
                   <td>
+                    <span
+                      className={`repo-access-status ${
+                        teacher.authProvider === "AWS_COGNITO"
+                          ? "repo-access-status--linked"
+                          : "repo-access-status--local"
+                      }`}
+                    >
+                      {teacher.authProvider === "AWS_COGNITO"
+                        ? "Cuenta vinculada"
+                        : "Sin acceso"}
+                    </span>
+                  </td>
+                  <td>
                     <div className="repo-table-actions">
                       <button
                         type="button"
                         className="repo-table-action"
                         onClick={() => void resendInvitation(teacher.email)}
-                        disabled={resendingEmail === teacher.email}
+                        disabled={
+                          resendingEmail === teacher.email ||
+                          teacher.authProvider !== "AWS_COGNITO"
+                        }
+                        title={
+                          teacher.authProvider === "AWS_COGNITO"
+                            ? "Reenviar invitación temporal"
+                            : "Primero crea el acceso con una clave temporal"
+                        }
                       >
                         <Send />
                         {resendingEmail === teacher.email
                           ? "Reenviando…"
-                          : "Reenviar invitación"}
+                          : "Reenviar"}
                       </button>
                       <button
                         type="button"
@@ -1644,11 +1841,18 @@ function TeachersSection() {
                           void resetTemporaryPassword(teacher.email)
                         }
                         disabled={resettingEmail === teacher.email}
+                        title={
+                          teacher.authProvider === "LOCAL"
+                            ? "Crear y vincular una cuenta con contraseña temporal"
+                            : "Generar una nueva contraseña temporal"
+                        }
                       >
                         <KeyRound />
                         {resettingEmail === teacher.email
                           ? "Generando…"
-                          : "Generar clave temporal"}
+                          : teacher.authProvider === "LOCAL"
+                            ? "Crear acceso"
+                            : "Nueva clave"}
                       </button>
                     </div>
                   </td>
@@ -1656,7 +1860,7 @@ function TeachersSection() {
               ))
             ) : (
               <tr>
-                <td colSpan={3}>No hay docentes para mostrar.</td>
+                <td colSpan={4}>No hay docentes para mostrar.</td>
               </tr>
             )}
           </tbody>
@@ -1750,7 +1954,9 @@ export function Maintenance() {
           ))}
         </aside>
         {section === "courses" && <CoursesSection />}
+        {section === "blocks" && <CourseBlocksManagement />}
         {section === "programs" && <ProgramsSection />}
+        {section === "plans" && <CurriculumPlansManagement />}
         {section === "semesters" && <SemestersSection />}
         {section === "teachers" && <TeachersSection />}
         {section === "students" && <StudentsManagement />}

@@ -194,6 +194,7 @@ export function EnrollmentsManagement() {
               <th>Alumno</th>
               <th>Curso</th>
               <th>Semestre</th>
+              <th>Práctica</th>
               <th>Estado</th>
               <th>Fecha</th>
               <th>Acciones</th>
@@ -202,11 +203,11 @@ export function EnrollmentsManagement() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>Cargando…</td>
+                <td colSpan={7}>Cargando…</td>
               </tr>
             ) : filteredEnrollments.length === 0 ? (
               <tr>
-                <td colSpan={6} className="repo-empty">
+                <td colSpan={7} className="repo-empty">
                   {search
                     ? "No se encontraron matrículas."
                     : "Aún no hay matrículas registradas."}
@@ -228,6 +229,7 @@ export function EnrollmentsManagement() {
                     </small>
                   </td>
                   <td>{enrollment.semesterName}</td>
+                  <td>{enrollment.practiceBlockName || "Sin asignar"}</td>
                   <td>
                     <span
                       className={

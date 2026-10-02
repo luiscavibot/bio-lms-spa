@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   repositoryService,
   type AcademicLevel,
+  type CurriculumPlan,
   type Offering,
   type Program,
   type Semester,
@@ -12,9 +13,11 @@ import {
 export function Courses() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [plans, setPlans] = useState<CurriculumPlan[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [search, setSearch] = useState("");
   const [programId, setProgramId] = useState("");
+  const [planId, setPlanId] = useState("");
   const [semesterId, setSemesterId] = useState("");
   const [academicLevel, setAcademicLevel] = useState("");
   const [loading, setLoading] = useState(true);
@@ -23,10 +26,12 @@ export function Courses() {
   useEffect(() => {
     Promise.all([
       repositoryService.getPrograms(),
+      repositoryService.getCurriculumPlans(),
       repositoryService.getSemesters(),
     ])
-      .then(([programData, semesterData]) => {
+      .then(([programData, planData, semesterData]) => {
         setPrograms(programData.programs.filter((program) => program.isActive));
+        setPlans(planData.plans);
         setSemesters(semesterData.semesters);
         const activeSemester = semesterData.semesters.find(
           (semester) => semester.isActive,
@@ -43,6 +48,7 @@ export function Courses() {
       const data = await repositoryService.getOfferings({
         search: search.trim() || undefined,
         programId: programId ? Number(programId) : undefined,
+        planId: planId ? Number(planId) : undefined,
         semesterId: semesterId ? Number(semesterId) : undefined,
         academicLevel: (academicLevel || undefined) as
           AcademicLevel | undefined,
@@ -57,7 +63,7 @@ export function Courses() {
     } finally {
       setLoading(false);
     }
-  }, [search, programId, semesterId, academicLevel]);
+  }, [search, programId, planId, semesterId, academicLevel]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadCourses(), 250);
@@ -124,6 +130,17 @@ export function Courses() {
             ))}
           </select>
         </label>
+        <label className="repo-select-field">
+          <span>Plan curricular</span>
+          <select value={planId} onChange={(event) => setPlanId(event.target.value)}>
+            <option value="">Todos</option>
+            {plans.map((plan) => (
+              <option key={plan.planId} value={plan.planId}>
+                {plan.planCode}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && <div className="repo-alert repo-alert--error">{error}</div>}
@@ -151,6 +168,7 @@ export function Courses() {
               </div>
               <div className="repo-course-card__bottom">
                 <p>{offering.programName}</p>
+                <p>Plan {offering.planCode}</p>
                 <p>{offering.semesterName}</p>
                 <Link
                   to={`/courses/${offering.offeringId}`}

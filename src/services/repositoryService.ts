@@ -6,12 +6,17 @@ export type AcademicLevel = "UNDERGRADUATE" | "POSTGRADUATE";
 export type BlockType = "THEORY" | "PRACTICE";
 export type MaterialCategory =
   "EXTERNAL_LINK" | "PRACTICE_FILE" | "CLASS_SLIDES";
+export type LinkMaterialSubtype = "VIDEO" | "ARTICLE" | "THESIS" | "WEBSITE";
 
 export interface OfferingBlock {
   blockId: number;
   name: string;
   blockType: BlockType;
   maxCapacity: number;
+  teacherId?: number;
+  teacherName?: string;
+  assignedStudentCount: number;
+  canManage: boolean;
 }
 
 export interface Offering {
@@ -23,10 +28,14 @@ export interface Offering {
   credits: number;
   programId: number;
   programName: string;
+  planId: number;
+  planCode: string;
   academicLevel: AcademicLevel;
   degreeType: string;
   semesterId: number;
   semesterName: string;
+  startDate: string;
+  endDate: string;
   teacherId?: number;
   teacherName?: string;
   status: string;
@@ -47,6 +56,13 @@ export interface Program {
   isActive: boolean;
 }
 
+export interface CurriculumPlan {
+  planId: number;
+  planCode: string;
+  isActive: boolean;
+  courseCount: number;
+}
+
 export interface Semester {
   semesterId: number;
   semesterName: string;
@@ -64,6 +80,7 @@ export interface Teacher {
   lastName: string;
   email: string;
   code?: string;
+  authProvider: "AWS_COGNITO" | "AUTH0" | "LOCAL";
 }
 
 export type Student = Teacher;
@@ -79,6 +96,28 @@ export interface Enrollment {
   semesterName: string;
   enrollmentDate: string;
   status: "ACTIVE" | "COMPLETED" | "DROPPED" | "WITHDRAWN";
+  practiceBlockId?: number;
+  practiceBlockName?: string;
+}
+
+export interface BlockConfigurationItem {
+  blockId: number;
+  name: string;
+  blockType: BlockType;
+  maxCapacity: number;
+  teacherId?: number;
+  teacherName?: string;
+  assignedStudentCount: number;
+}
+
+export interface CourseBlockConfiguration {
+  courseOfferingId: number;
+  courseName: string;
+  courseCode: string;
+  semesterName: string;
+  principalTeacherId?: number;
+  principalTeacherName?: string;
+  blocks: BlockConfigurationItem[];
 }
 
 export interface FileResource {
@@ -93,6 +132,7 @@ export interface Material {
   title: string;
   materialType: "FILE" | "LINK";
   materialCategory: MaterialCategory;
+  linkSubtype?: LinkMaterialSubtype;
   externalLinkUrl?: string;
   createdAt: string;
   fileResource?: FileResource;
@@ -104,6 +144,10 @@ export interface Week {
   weekNumber: number;
   topicSummary?: string;
   blockId: number;
+  weekStartDate: string;
+  weekEndDate: string;
+  isLocked: boolean;
+  canManage: boolean;
   materials: Material[];
 }
 
@@ -120,6 +164,7 @@ export const repositoryService = {
     filters: {
       search?: string;
       programId?: number;
+      planId?: number;
       semesterId?: number;
       academicLevel?: AcademicLevel;
     } = {},
@@ -137,9 +182,12 @@ export const repositoryService = {
     description: string;
     credits?: number;
     programId: number;
+    planId: number;
     semesterId: number;
-    teacherId?: number;
-    blockTypes: BlockType[];
+    teacherId: number;
+    practiceBlockCount: number;
+    startDate: string;
+    endDate: string;
   }) {
     return httpClient.post<Offering>(
       `${API}/course-offerings/with-structure`,
@@ -157,12 +205,39 @@ export const repositoryService = {
       description: string;
       credits: number;
       programId: number;
+      planId: number;
     },
   ) {
     return httpClient.put(`${API}/courses/${id}`, data);
   },
+  updateOfferingSchedule(
+    id: number,
+    data: { startDate: string; endDate: string },
+  ) {
+    return httpClient.patch<Offering>(
+      `${API}/course-offerings/${id}/schedule`,
+      data,
+    );
+  },
   deleteCourse(id: number) {
     return httpClient.delete(`${API}/courses/${id}`);
+  },
+  getCurriculumPlans() {
+    return httpClient.get<{ plans: CurriculumPlan[]; total: number }>(
+      `${API}/curriculum-plans`,
+    );
+  },
+  createCurriculumPlan(data: { planCode: string }) {
+    return httpClient.post<CurriculumPlan>(`${API}/curriculum-plans`, data);
+  },
+  updateCurriculumPlan(
+    id: number,
+    data: { planCode: string; isActive: boolean },
+  ) {
+    return httpClient.put<CurriculumPlan>(`${API}/curriculum-plans/${id}`, data);
+  },
+  deleteCurriculumPlan(id: number) {
+    return httpClient.delete<void>(`${API}/curriculum-plans/${id}`);
   },
   getPrograms() {
     return httpClient.get<{ programs: Program[]; total: number }>(
@@ -256,7 +331,11 @@ export const repositoryService = {
     return httpClient.post(`${API}/auth/cognito/resend-invitation`, { email });
   },
   resetTeacherTemporaryPassword(email: string, temporaryPassword: string) {
-    return httpClient.post(`${API}/auth/cognito/reset-temporary-password`, {
+    return httpClient.post<{
+      message: string;
+      email: string;
+      accountProvisioned: boolean;
+    }>(`${API}/auth/cognito/reset-temporary-password`, {
       email,
       temporaryPassword,
     });
@@ -293,12 +372,22 @@ export const repositoryService = {
     return httpClient.post(`${API}/auth/cognito/resend-invitation`, { email });
   },
   resetStudentTemporaryPassword(email: string, temporaryPassword: string) {
-    return httpClient.post(`${API}/auth/cognito/reset-temporary-password`, {
+    return httpClient.post<{
+      message: string;
+      email: string;
+      accountProvisioned: boolean;
+    }>(`${API}/auth/cognito/reset-temporary-password`, {
       email,
       temporaryPassword,
     });
   },
-  getEnrollments(filters: { semesterId?: number; userId?: number } = {}) {
+  getEnrollments(
+    filters: {
+      semesterId?: number;
+      userId?: number;
+      courseOfferingId?: number;
+    } = {},
+  ) {
     return httpClient.get<{ enrollments: Enrollment[]; total: number }>(
       `${API}/enrollments${queryString(filters)}`,
     );
@@ -308,6 +397,38 @@ export const repositoryService = {
   },
   deleteEnrollment(id: number) {
     return httpClient.delete(`${API}/enrollments/${id}`);
+  },
+  assignEnrollmentPracticeBlock(id: number, blockId: number | null) {
+    return httpClient.put<Enrollment>(`${API}/enrollments/${id}/practice-block`, {
+      blockId,
+    });
+  },
+  getBlockConfiguration(courseOfferingId: number) {
+    return httpClient.get<CourseBlockConfiguration>(
+      `${API}/blocks/configuration/${courseOfferingId}`,
+    );
+  },
+  assignPrincipalTeacher(courseOfferingId: number, teacherId: number) {
+    return httpClient.put<CourseBlockConfiguration>(
+      `${API}/blocks/course-offerings/${courseOfferingId}/principal`,
+      { teacherId },
+    );
+  },
+  createPracticeBlock(data: {
+    courseOfferingId: number;
+    maxCapacity: number;
+    teacherId?: number;
+  }) {
+    return httpClient.post<CourseBlockConfiguration>(`${API}/blocks/practice`, data);
+  },
+  updatePracticeBlock(
+    id: number,
+    data: { name: string; maxCapacity: number; teacherId: number | null },
+  ) {
+    return httpClient.patch<CourseBlockConfiguration>(`${API}/blocks/${id}`, data);
+  },
+  deletePracticeBlock(id: number) {
+    return httpClient.delete<CourseBlockConfiguration>(`${API}/blocks/${id}`);
   },
   getWeeks(blockId: number) {
     return httpClient.get<Week[]>(`${API}/weeks?blockId=${blockId}`);
@@ -325,7 +446,12 @@ export const repositoryService = {
   deleteWeek(id: number) {
     return httpClient.delete<void>(`${API}/weeks/${id}`);
   },
-  createLink(data: { weekId: number; title: string; externalLinkUrl: string }) {
+  createLink(data: {
+    weekId: number;
+    title: string;
+    externalLinkUrl: string;
+    linkSubtype: LinkMaterialSubtype;
+  }) {
     return httpClient.post<Material>(`${API}/materials/link`, data);
   },
   uploadMaterial(data: {
@@ -343,7 +469,11 @@ export const repositoryService = {
   },
   updateMaterial(
     id: number,
-    data: { title?: string; externalLinkUrl?: string },
+    data: {
+      title?: string;
+      externalLinkUrl?: string;
+      linkSubtype?: LinkMaterialSubtype;
+    },
   ) {
     return httpClient.patch<Material>(`${API}/materials/${id}`, data);
   },

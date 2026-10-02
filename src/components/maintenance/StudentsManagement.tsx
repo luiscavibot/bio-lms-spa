@@ -1,6 +1,7 @@
 import { Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { copyText } from "@/lib/copyText";
 import {
   Dialog,
   DialogContent,
@@ -155,7 +156,7 @@ export function StudentsManagement() {
   const copyCredentials = async () => {
     if (!createdCredentials) return;
     try {
-      await navigator.clipboard.writeText(
+      await copyText(
         `Usuario: ${createdCredentials.email}\nContraseña temporal: ${createdCredentials.password}`,
       );
       setCopied(true);
