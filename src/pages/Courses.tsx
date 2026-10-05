@@ -142,7 +142,7 @@ export function Courses() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar"
+            placeholder="Buscar curso, código o docente"
           />
           <Search size={20} aria-hidden="true" />
         </label>
