@@ -1,4 +1,4 @@
-import { FileUp, LockKeyhole, Pencil, UploadCloud } from "lucide-react";
+import { FileText, FileUp, LockKeyhole, Pencil, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -14,14 +14,42 @@ import {
   type MaterialCategory,
   type LinkMaterialSubtype,
   type Offering,
+  type UploadableMaterialCategory,
   type Week,
 } from "@/services/repositoryService";
+import { authorsLine } from "@/lib/authors";
 
 const materialLabels: Record<MaterialCategory, string> = {
-  EXTERNAL_LINK: "Enlace externo (recomendado)",
-  PRACTICE_FILE: "Archivo de prácticas",
-  CLASS_SLIDES: "Diapositivas de clase",
+  EXTERNAL_LINK: "Enlace externo",
+  CLASS_SLIDES: "Material de teoría",
+  PRACTICE_FILE: "Material de práctica",
+  ASSIGNMENT_FILE: "Guía de tarea",
+  ANNOUNCEMENT_FILE: "Adjunto de anuncio",
 };
+
+/** Categories offered when a material is added by hand. */
+const creatableCategories: (UploadableMaterialCategory | "EXTERNAL_LINK")[] = [
+  "CLASS_SLIDES",
+  "PRACTICE_FILE",
+  "EXTERNAL_LINK",
+];
+
+function formatSize(bytes?: number) {
+  if (!bytes) return "";
+  const value = Number(bytes);
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(value / 1024))} KB`;
+}
+
+function materialAuthor(material: Material) {
+  const uploader = material.uploadedBy
+    ? `${material.uploadedBy.firstName} ${material.uploadedBy.lastName}`.trim()
+    : "";
+  if (uploader) return `Subido por ${uploader}`;
+  if (material.authorName) return `Publicado por ${material.authorName}`;
+  return "Subido por Repositorio";
+}
+
 
 const linkSubtypeLabels: Record<LinkMaterialSubtype, string> = {
   VIDEO: "Video",
@@ -44,6 +72,7 @@ function formatWeekDate(value: string) {
   return new Intl.DateTimeFormat("es-PE", {
     day: "2-digit",
     month: "short",
+    year: "numeric",
     timeZone: "UTC",
   })
     .format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
@@ -61,8 +90,11 @@ function NewMaterialDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
-  const [category, setCategory] = useState<MaterialCategory | "">("");
+  const [category, setCategory] = useState<
+    UploadableMaterialCategory | "EXTERNAL_LINK" | ""
+  >("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
   const [linkSubtype, setLinkSubtype] = useState<LinkMaterialSubtype | "">("");
   const [file, setFile] = useState<File>();
@@ -73,6 +105,7 @@ function NewMaterialDialog({
     if (!open) {
       setCategory("");
       setTitle("");
+      setDescription("");
       setUrl("");
       setLinkSubtype("");
       setFile(undefined);
@@ -93,6 +126,7 @@ function NewMaterialDialog({
           title: title.trim(),
           externalLinkUrl: url.trim(),
           linkSubtype,
+          description: description.trim() || undefined,
         });
       } else {
         if (!file) throw new Error("Selecciona un archivo");
@@ -101,6 +135,7 @@ function NewMaterialDialog({
           title: title.trim(),
           materialCategory: category,
           file,
+          description: description.trim() || undefined,
         });
       }
       onOpenChange(false);
@@ -130,20 +165,18 @@ function NewMaterialDialog({
           <select
             value={category}
             onChange={(event) =>
-              setCategory(event.target.value as MaterialCategory)
+              setCategory(
+                event.target.value as UploadableMaterialCategory | "EXTERNAL_LINK",
+              )
             }
           >
             <option value="">Seleccionar</option>
-            {Object.entries(materialLabels).map(([value, label]) => (
+            {creatableCategories.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {materialLabels[value]}
               </option>
             ))}
           </select>
-          <small>
-            Recomendamos publicar enlaces para evitar archivos pesados. La carga
-            de archivos seguirá disponible.
-          </small>
         </label>
         {category && (
           <label className="repo-form-field">
@@ -152,6 +185,17 @@ function NewMaterialDialog({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Ej. Clase 05: Investigación científica"
+            />
+          </label>
+        )}
+        {category && (
+          <label className="repo-form-field">
+            <span>Descripción (opcional)</span>
+            <textarea
+              rows={3}
+              maxLength={5000}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
           </label>
         )}
@@ -234,6 +278,7 @@ function EditMaterialDialog({
   onSaved: () => void;
 }) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
   const [linkSubtype, setLinkSubtype] = useState<LinkMaterialSubtype>("WEBSITE");
   const [saving, setSaving] = useState(false);
@@ -241,6 +286,7 @@ function EditMaterialDialog({
 
   useEffect(() => {
     setTitle(material?.title || "");
+    setDescription(material?.description || "");
     setUrl(material?.externalLinkUrl || "");
     setLinkSubtype(material?.linkSubtype || "WEBSITE");
     setError("");
@@ -252,6 +298,7 @@ function EditMaterialDialog({
     try {
       await repositoryService.updateMaterial(material.id, {
         title: title.trim(),
+        description: description.trim(),
         ...(material.materialType === "LINK"
           ? { externalLinkUrl: url.trim(), linkSubtype }
           : {}),
@@ -283,6 +330,15 @@ function EditMaterialDialog({
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
+          />
+        </label>
+        <label className="repo-form-field">
+          <span>Descripción</span>
+          <textarea
+            rows={3}
+            maxLength={5000}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
           />
         </label>
         {material?.materialType === "LINK" && (
@@ -439,6 +495,25 @@ export function CourseDetail() {
     void loadWeeks();
   }, [loadWeeks]);
 
+  const openUrl = (url: string) => {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.click();
+  };
+
+  const openSyllabus = async (blockIdToOpen: number) => {
+    try {
+      const { url } = await repositoryService.getSyllabusAccess(blockIdToOpen);
+      openUrl(url);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudo abrir el sílabo",
+      );
+    }
+  };
+
   const openMaterial = async (material: Material) => {
     try {
       const { url } = await repositoryService.getMaterialAccess(material.id);
@@ -507,7 +582,12 @@ export function CourseDetail() {
                 : "Posgrado"}
             </span>
           </div>
-          <p>{offering.teacherName || "Docente por asignar"}</p>
+          <p>
+            {offering.teacherName ||
+              (offering.authors?.length
+                ? `Materiales de ${authorsLine(offering.authors)}`
+                : "Docente por asignar")}
+          </p>
           <p>{offering.programName}</p>
           <p>Plan curricular {offering.planCode}</p>
           <p>{offering.semesterName}</p>
@@ -538,12 +618,21 @@ export function CourseDetail() {
         <div className="repo-block-access-note">
           <strong>{selectedBlock.name}</strong>
           <span>
-            {selectedBlock.blockType === "THEORY"
-              ? "Contenido común del curso"
-              : selectedBlock.teacherName
-                ? `Responsable: ${selectedBlock.teacherName}`
-                : "Docente de práctica por asignar"}
+            {selectedBlock.teacherName
+              ? `Responsable: ${selectedBlock.teacherName}`
+              : selectedBlock.blockType === "THEORY"
+                ? "Teoría"
+                : "Práctica"}
           </span>
+          {selectedBlock.hasSyllabus && (
+            <button
+              type="button"
+              className="repo-table-action"
+              onClick={() => void openSyllabus(selectedBlock.blockId)}
+            >
+              <FileText /> Sílabo
+            </button>
+          )}
           {canManage && <span className="repo-status repo-status--active">Puedes administrar</span>}
         </div>
       )}
@@ -620,11 +709,17 @@ export function CourseDetail() {
                         >
                           {material.title}
                         </button>
+                        {material.description && (
+                          <p className="repo-material-description">
+                            {material.description}
+                          </p>
+                        )}
                         <p className="repo-material-meta">
-                          {formatDate(material.createdAt)} · Subido por{" "}
-                          {material.uploadedBy
-                            ? `${material.uploadedBy.firstName} ${material.uploadedBy.lastName}`.trim()
-                            : "Repositorio"}
+                          {formatDate(material.createdAt)} ·{" "}
+                          {materialAuthor(material)}
+                          {material.fileResource
+                            ? ` · ${material.fileResource.fileName} (${formatSize(material.fileResource.sizeBytes)})`
+                            : ""}
                         </p>
                       </div>
                       {week.canManage && (

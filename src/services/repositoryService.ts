@@ -5,7 +5,13 @@ const API = "/api/v1";
 export type AcademicLevel = "UNDERGRADUATE" | "POSTGRADUATE";
 export type BlockType = "THEORY" | "PRACTICE";
 export type MaterialCategory =
-  "EXTERNAL_LINK" | "PRACTICE_FILE" | "CLASS_SLIDES";
+  | "EXTERNAL_LINK"
+  | "PRACTICE_FILE"
+  | "CLASS_SLIDES"
+  | "ASSIGNMENT_FILE"
+  | "ANNOUNCEMENT_FILE";
+/** Categories a person can choose when adding a material by hand. */
+export type UploadableMaterialCategory = "PRACTICE_FILE" | "CLASS_SLIDES";
 export type LinkMaterialSubtype = "VIDEO" | "ARTICLE" | "THESIS" | "WEBSITE";
 
 export interface OfferingBlock {
@@ -16,6 +22,7 @@ export interface OfferingBlock {
   teacherId?: number;
   teacherName?: string;
   assignedStudentCount: number;
+  hasSyllabus: boolean;
   canManage: boolean;
 }
 
@@ -38,6 +45,8 @@ export interface Offering {
   endDate: string;
   teacherId?: number;
   teacherName?: string;
+  /** Authors of its materials, shown while no teacher is assigned. */
+  authors: string[];
   status: string;
   totalSeats: number;
   enrolledCount: number;
@@ -137,6 +146,10 @@ export interface Material {
   createdAt: string;
   fileResource?: FileResource;
   uploadedBy?: { firstName: string; lastName: string };
+  /** Text that accompanied the material. */
+  description?: string | null;
+  /** Who published it originally (informative; grants no access). */
+  authorName?: string | null;
 }
 
 export interface Week {
@@ -167,10 +180,17 @@ export const repositoryService = {
       planId?: number;
       semesterId?: number;
       academicLevel?: AcademicLevel;
+      page?: number;
+      limit?: number;
     } = {},
   ) {
     return httpClient.get<{ offerings: Offering[]; total: number }>(
       `${API}/course-offerings${queryString(filters)}`,
+    );
+  },
+  getSyllabusAccess(blockId: number) {
+    return httpClient.get<{ url: string; expiresIn?: number }>(
+      `${API}/blocks/${blockId}/syllabus/access`,
     );
   },
   getOffering(id: number) {
@@ -451,19 +471,22 @@ export const repositoryService = {
     title: string;
     externalLinkUrl: string;
     linkSubtype: LinkMaterialSubtype;
+    description?: string;
   }) {
     return httpClient.post<Material>(`${API}/materials/link`, data);
   },
   uploadMaterial(data: {
     weekId: number;
     title: string;
-    materialCategory: Exclude<MaterialCategory, "EXTERNAL_LINK">;
+    materialCategory: UploadableMaterialCategory;
     file: File;
+    description?: string;
   }) {
     const form = new FormData();
     form.append("weekId", String(data.weekId));
     form.append("title", data.title);
     form.append("materialCategory", data.materialCategory);
+    if (data.description) form.append("description", data.description);
     form.append("file", data.file);
     return httpClient.uploadForm<Material>(`${API}/materials/upload`, form);
   },
@@ -473,6 +496,7 @@ export const repositoryService = {
       title?: string;
       externalLinkUrl?: string;
       linkSubtype?: LinkMaterialSubtype;
+      description?: string;
     },
   ) {
     return httpClient.patch<Material>(`${API}/materials/${id}`, data);

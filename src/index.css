@@ -367,6 +367,12 @@
   .repo-material-row__main > button {
     @apply text-left text-sm font-semibold hover:text-emerald-700 hover:underline;
   }
+  .repo-load-more {
+    @apply mx-auto mt-8 flex;
+  }
+  .repo-material-description {
+    @apply mt-1 whitespace-pre-line text-sm text-slate-700;
+  }
   .repo-material-meta {
     @apply mt-2 text-xs text-slate-500;
   }

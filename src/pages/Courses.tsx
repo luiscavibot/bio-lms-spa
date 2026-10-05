@@ -9,6 +9,10 @@ import {
   type Program,
   type Semester,
 } from "@/services/repositoryService";
+import { authorsLine } from "@/lib/authors";
+
+/** With every semester selected the list is paged; one semester loads at once. */
+const PAGE_SIZE = 60;
 
 export function Courses() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
@@ -21,6 +25,9 @@ export function Courses() {
   const [semesterId, setSemesterId] = useState("");
   const [academicLevel, setAcademicLevel] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -41,19 +48,43 @@ export function Courses() {
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
-  const loadCourses = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await repositoryService.getOfferings({
+  const fetchPage = useCallback(
+    (pageNumber: number) =>
+      repositoryService.getOfferings({
         search: search.trim() || undefined,
         programId: programId ? Number(programId) : undefined,
         planId: planId ? Number(planId) : undefined,
         semesterId: semesterId ? Number(semesterId) : undefined,
         academicLevel: (academicLevel || undefined) as
           AcademicLevel | undefined,
-      });
+        ...(semesterId ? {} : { page: pageNumber, limit: PAGE_SIZE }),
+      }),
+    [search, programId, planId, semesterId, academicLevel],
+  );
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const data = await fetchPage(page + 1);
+      setOfferings((current) => [...current, ...data.offerings]);
+      setPage(page + 1);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudieron cargar más cursos",
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const loadCourses = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await fetchPage(1);
       setOfferings(data.offerings);
+      setTotal(data.total);
+      setPage(1);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -63,7 +94,7 @@ export function Courses() {
     } finally {
       setLoading(false);
     }
-  }, [search, programId, planId, semesterId, academicLevel]);
+  }, [fetchPage]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadCourses(), 250);
@@ -164,7 +195,12 @@ export function Courses() {
                     : "Posgrado"}
                 </span>
                 <h2>{offering.courseName}</h2>
-                <p>{offering.teacherName || "Docente por asignar"}</p>
+                <p>
+                  {offering.teacherName ||
+                    (offering.authors?.length
+                      ? `Materiales de ${authorsLine(offering.authors)}`
+                      : "Docente por asignar")}
+                </p>
               </div>
               <div className="repo-course-card__bottom">
                 <p>{offering.programName}</p>
@@ -180,6 +216,18 @@ export function Courses() {
             </article>
           ))}
         </div>
+      )}
+      {!loading && !semesterId && offerings.length < total && (
+        <button
+          type="button"
+          className="repo-outline-button repo-load-more"
+          onClick={() => void loadMore()}
+          disabled={loadingMore}
+        >
+          {loadingMore
+            ? "Cargando…"
+            : `Cargar más cursos (${offerings.length} de ${total})`}
+        </button>
       )}
     </section>
   );

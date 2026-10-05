@@ -308,7 +308,8 @@ function CoursesSection() {
     setDeletePending(true);
     setError("");
     try {
-      await repositoryService.deleteCourse(deletingCourse.courseId);
+      // Several editions share a course after the Classroom import: only this one is removed.
+      await repositoryService.deleteOffering(deletingCourse.offeringId);
       setDeletingCourse(null);
       await load();
     } catch (reason) {
@@ -758,8 +759,8 @@ function CoursesSection() {
       <ConfirmDialog
         open={!!deletingCourse}
         onOpenChange={(open) => !open && setDeletingCourse(null)}
-        title="Eliminar curso"
-        description={`Se eliminará “${deletingCourse?.courseName || ""}” y dejará de aparecer en todos sus semestres. Esta acción no se puede deshacer.`}
+        title="Eliminar edición del curso"
+        description={`Se eliminará la edición ${deletingCourse?.semesterName || ""} de “${deletingCourse?.courseName || ""}”. Las demás ediciones del curso se conservan.`}
         pending={deletePending}
         onConfirm={confirmDeleteCourse}
       />
