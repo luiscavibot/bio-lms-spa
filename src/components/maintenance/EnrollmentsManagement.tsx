@@ -283,6 +283,7 @@ export function EnrollmentsManagement() {
             onChange={(courseOfferingId) => setForm({ ...form, courseOfferingId })}
             excludeIds={enrolledOfferingIds}
             disabled={!form.userId}
+            disabledHint="Elige primero al alumno."
           />
           <button
             type="button"

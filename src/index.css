@@ -386,21 +386,54 @@
   .repo-material-row__main > button {
     @apply text-left text-sm font-semibold hover:text-emerald-700 hover:underline;
   }
-  .repo-offering-picker {
+  .repo-search-picker {
     @apply flex flex-col gap-2;
   }
-  .repo-offering-picker > span {
+  .repo-search-picker__label {
     @apply text-sm font-medium text-slate-800;
   }
-  .repo-offering-picker__filters {
-    @apply grid gap-2 sm:grid-cols-[12rem_1fr];
+  .repo-search-picker__inputs {
+    @apply flex flex-col gap-2 sm:flex-row;
   }
-  .repo-offering-picker select,
-  .repo-offering-picker input {
-    @apply h-10 rounded border border-slate-300 bg-white px-3 text-sm;
+  .repo-search-picker__inputs select {
+    @apply h-10 rounded border border-slate-300 bg-white px-3 text-sm sm:w-48;
   }
-  .repo-offering-picker small {
+  .repo-search-picker__inputs input {
+    @apply h-10 min-w-0 flex-1 rounded border border-slate-300 bg-white px-3 text-sm;
+  }
+  .repo-search-picker__results {
+    @apply max-h-64 overflow-y-auto rounded border border-slate-200 bg-white;
+  }
+  .repo-search-picker__results li + li {
+    @apply border-t border-slate-100;
+  }
+  .repo-search-picker__results button {
+    @apply flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent;
+  }
+  .repo-search-picker__results strong {
+    @apply text-sm font-medium text-slate-900;
+  }
+  .repo-search-picker__results small,
+  .repo-search-picker__selected small {
     @apply text-xs text-slate-500;
+  }
+  .repo-search-picker__note {
+    @apply px-3 py-2 text-sm text-slate-500;
+  }
+  .repo-search-picker > small {
+    @apply text-xs text-slate-500;
+  }
+  .repo-search-picker__selected {
+    @apply flex items-center justify-between gap-3 rounded border border-emerald-700 bg-emerald-50 px-3 py-2;
+  }
+  .repo-search-picker__selected > div {
+    @apply flex flex-col gap-0.5;
+  }
+  .repo-search-picker__selected strong {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .repo-search-picker__selected button {
+    @apply inline-flex shrink-0 items-center gap-1 text-sm text-slate-600 hover:text-slate-900;
   }
   .repo-pagination {
     @apply mt-8 flex flex-col items-center gap-3 text-sm text-slate-600;

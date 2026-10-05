@@ -1,4 +1,5 @@
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { SearchPicker } from "@/components/ui/search-picker";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -45,74 +46,46 @@ function CoursePicker({
   value: Course | null;
   onChange: (course: Course | null) => void;
 }) {
-  const [query, setQuery] = useState("");
   const [results, setResults] = useState<Course[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const search = useCallback(async (query: string) => {
+    const data = await repositoryService.getCourses({
+      search: query || undefined,
+      page: 1,
+      limit: COURSE_RESULTS,
+    });
+    setResults(data.courses);
+    return {
+      total: data.total,
+      items: data.courses.map((course) => ({
+        key: course.courseId,
+        title: course.courseName,
+        detail: courseDetail(course),
+      })),
+    };
+  }, []);
 
-  useEffect(() => {
-    if (value) return;
-    const timeout = window.setTimeout(() => {
-      setLoading(true);
-      repositoryService
-        .getCourses({ search: query.trim() || undefined, page: 1, limit: COURSE_RESULTS })
-        .then((data) => {
-          setResults(data.courses);
-          setTotal(data.total);
-        })
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false));
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [query, value]);
-
-  if (value) {
-    return (
-      <div className="repo-form-field repo-form-field--wide">
-        <span>Curso</span>
-        <div className="repo-filter-chip self-start">
-          {value.courseName} ({value.courseCode}) · {value.programName} · Plan {value.planCode}
-          <button type="button" aria-label="Cambiar curso" onClick={() => onChange(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  }
   return (
-    <div className="repo-offering-picker repo-form-field--wide">
-      <span>Curso</span>
-      <input
-        aria-label="Buscar curso por nombre o código"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Buscar curso por nombre o código"
-      />
-      <select
-        aria-label="Curso"
-        value=""
-        onChange={(event) =>
-          onChange(results.find((course) => String(course.courseId) === event.target.value) ?? null)
-        }
-        disabled={loading}
-      >
-        <option value="">{loading ? "Buscando…" : "Seleccionar curso"}</option>
-        {results.map((course) => (
-          <option key={course.courseId} value={course.courseId}>
-            {course.courseName} ({course.courseCode}) — {course.programName}
-          </option>
-        ))}
-      </select>
-      {!loading && total > COURSE_RESULTS && (
-        <small>
-          Se muestran {COURSE_RESULTS} de {total}. Escribe parte del nombre para acotar.
-        </small>
-      )}
-      {!loading && total === 0 && (
-        <small>No hay cursos con ese texto. Créalo primero en la sección Cursos.</small>
-      )}
-    </div>
+    <SearchPicker
+      className="repo-form-field--wide"
+      label="Curso"
+      placeholder="Buscar curso por nombre o código"
+      selected={
+        value ? { key: value.courseId, title: value.courseName, detail: courseDetail(value) } : null
+      }
+      onClear={() => onChange(null)}
+      onPick={(key) => onChange(results.find((course) => course.courseId === key) ?? null)}
+      search={search}
+      emptyText={(query) =>
+        query
+          ? `Ningún curso coincide con «${query}». Si es nuevo, créalo primero en Cursos.`
+          : "Todavía no hay cursos. Créalos primero en Cursos."
+      }
+    />
   );
+}
+
+function courseDetail(course: Course) {
+  return `${course.courseCode} · ${course.programName} · Plan ${course.planCode}`;
 }
 
 /**
