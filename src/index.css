@@ -569,48 +569,6 @@
   .repo-status--warning svg {
     @apply h-3.5 w-3.5;
   }
-  .repo-imported-flag {
-    @apply flex items-center gap-1.5 font-medium text-amber-800;
-  }
-  .repo-imported-flag svg {
-    @apply h-4 w-4;
-  }
-  .repo-imported-post {
-    @apply border-b border-slate-200 px-4 py-4 last:border-b-0;
-  }
-  .repo-imported-post__header {
-    @apply flex flex-col gap-2 md:flex-row md:items-start md:justify-between;
-  }
-  .repo-imported-post__header h3 {
-    @apply text-sm font-semibold text-slate-900;
-  }
-  .repo-imported-post__badges {
-    @apply flex flex-wrap gap-2 md:justify-end;
-  }
-  .repo-imported-post__body {
-    @apply mt-3 whitespace-pre-line text-sm text-slate-700;
-  }
-  .repo-imported-attachments {
-    @apply mt-3 grid gap-2 sm:grid-cols-2;
-  }
-  .repo-imported-attachment {
-    @apply flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-emerald-600 hover:bg-emerald-50;
-  }
-  .repo-imported-attachment > svg {
-    @apply h-5 w-5 shrink-0 text-emerald-700;
-  }
-  .repo-imported-attachment > svg:last-child {
-    @apply h-4 w-4 text-slate-400;
-  }
-  .repo-imported-attachment > span {
-    @apply min-w-0 flex-1;
-  }
-  .repo-imported-attachment__title {
-    @apply block truncate font-medium text-slate-900;
-  }
-  .repo-imported-attachment small {
-    @apply block text-xs text-slate-500;
-  }
   .repo-block-access-note {
     @apply mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600;
   }

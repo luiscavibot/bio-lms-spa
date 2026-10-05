@@ -47,11 +47,6 @@ export function Layout() {
               Cursos
             </NavLink>
             {isAdmin && (
-              <NavLink to="/imported" className={linkClass}>
-                Aulas importadas
-              </NavLink>
-            )}
-            {isAdmin && (
               <NavLink to="/maintenance" className={linkClass}>
                 Mantenimiento
               </NavLink>
@@ -86,11 +81,6 @@ export function Layout() {
             <NavLink to="/" onClick={() => setMobileOpen(false)}>
               Cursos
             </NavLink>
-            {isAdmin && (
-              <NavLink to="/imported" onClick={() => setMobileOpen(false)}>
-                Aulas importadas
-              </NavLink>
-            )}
             {isAdmin && (
               <NavLink to="/maintenance" onClick={() => setMobileOpen(false)}>
                 Mantenimiento
