@@ -644,14 +644,12 @@ export function CourseDetail() {
               <strong>{selectedBlockType}</strong>
             </div>
           )}
-          <div className="repo-block-fact">
-            <span>Responsable</span>
-            {selectedBlock.teacherName ? (
+          {selectedBlock.teacherName && (
+            <div className="repo-block-fact">
+              <span>Responsable</span>
               <strong>{selectedBlock.teacherName}</strong>
-            ) : (
-              <strong className="repo-block-fact__empty">Por asignar</strong>
-            )}
-          </div>
+            </div>
+          )}
           {selectedBlock.hasSyllabus && (
             <button
               type="button"

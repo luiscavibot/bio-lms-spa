@@ -618,9 +618,6 @@
   .repo-block-fact > span {
     @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
   }
-  .repo-block-fact__empty {
-    @apply font-normal italic text-slate-500;
-  }
   .repo-toggle-field {
     @apply flex items-center gap-3 text-sm font-medium text-slate-800;
   }
