@@ -202,7 +202,7 @@ export function Courses() {
                 <p>
                   {offering.teacherName ||
                     (offering.authors?.length
-                      ? `Materiales de ${authorsLine(offering.authors)}`
+                      ? `Publicado por ${authorsLine(offering.authors)}`
                       : "Docente por asignar")}
                 </p>
               </div>

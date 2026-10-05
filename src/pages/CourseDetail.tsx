@@ -594,7 +594,7 @@ export function CourseDetail() {
           <p>
             {offering.teacherName ||
               (offering.authors?.length
-                ? `Materiales de ${authorsLine(offering.authors)}`
+                ? `Publicado por ${authorsLine(offering.authors)}`
                 : "Docente por asignar")}
           </p>
           <p>{offering.programName}</p>
