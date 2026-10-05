@@ -122,7 +122,9 @@ export function OfferingsSection({
     startDate: "",
     endDate: "",
     teacherId: "",
+    theoryBlockCount: "1",
     practiceBlockCount: "1",
+    seminarBlockCount: "0",
   });
   const [editing, setEditing] = useState<Offering | null>(null);
   const [editDates, setEditDates] = useState({ startDate: "", endDate: "" });
@@ -206,6 +208,10 @@ export function OfferingsSection({
       setError("Elige el curso y el semestre, y completa las fechas de la oferta.");
       return;
     }
+    if (Number(form.theoryBlockCount) + Number(form.practiceBlockCount) + Number(form.seminarBlockCount) < 1) {
+      setError("La oferta necesita al menos un bloque.");
+      return;
+    }
     if (form.endDate < form.startDate) {
       setError("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
       return;
@@ -217,7 +223,9 @@ export function OfferingsSection({
         courseId: form.course.courseId,
         semesterId: Number(form.semesterId),
         teacherId: form.teacherId ? Number(form.teacherId) : undefined,
+        theoryBlockCount: Number(form.theoryBlockCount),
         practiceBlockCount: Number(form.practiceBlockCount),
+        seminarBlockCount: Number(form.seminarBlockCount),
         startDate: form.startDate,
         endDate: form.endDate,
       });
@@ -340,19 +348,30 @@ export function OfferingsSection({
               ))}
             </select>
           </label>
-          <label className="repo-form-field">
-            <span>Bloques de práctica</span>
-            <select
-              value={form.practiceBlockCount}
-              onChange={(event) => setForm({ ...form, practiceBlockCount: event.target.value })}
-            >
-              <option value="0">Sin práctica</option>
-              <option value="1">1 bloque — Práctica A</option>
-              <option value="2">2 bloques — Prácticas A y B</option>
-              <option value="3">3 bloques — Prácticas A, B y C</option>
-            </select>
-            <small>El bloque de Teoría se crea siempre y es común a todos.</small>
-          </label>
+          <div className="repo-form-row repo-form-field--wide">
+            {(
+              [
+                ["theoryBlockCount", "Teorías", 10],
+                ["practiceBlockCount", "Prácticas", 30],
+                ["seminarBlockCount", "Seminarios", 10],
+              ] as const
+            ).map(([field, label, max]) => (
+              <label className="repo-form-field" key={field}>
+                <span>{label}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={max}
+                  value={form[field]}
+                  onChange={(event) => setForm({ ...form, [field]: event.target.value })}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="repo-form-hint">
+            Un bloque por cada aula o grupo: varias teorías si la clase se divide. Luego puedes
+            renombrarlos, asignarles sección y responsables en Bloques.
+          </p>
         </div>
       </div>
     );

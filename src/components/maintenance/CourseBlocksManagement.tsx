@@ -1,50 +1,140 @@
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { OfferingPicker } from "@/components/maintenance/OfferingPicker";
+import { BLOCK_TYPE_LABEL, BLOCK_TYPES, blockSummary } from "@/lib/blocks";
 import {
   repositoryService,
   type BlockConfigurationItem,
+  type BlockType,
   type CourseBlockConfiguration,
   type Enrollment,
   type Teacher,
 } from "@/services/repositoryService";
 
-interface BlockDraft {
+interface BlockForm {
+  blockType: BlockType;
   name: string;
+  section: string;
   maxCapacity: string;
-  teacherId: string;
+  teacherIds: number[];
 }
 
+const emptyForm: BlockForm = {
+  blockType: "THEORY",
+  name: "",
+  section: "",
+  maxCapacity: "50",
+  teacherIds: [],
+};
+
+function errorMessage(reason: unknown, fallback: string) {
+  return reason instanceof Error ? reason.message : fallback;
+}
+
+/** Chooses several teachers by typing part of their name. */
+function TeacherMultiPicker({
+  teachers,
+  value,
+  onChange,
+}: {
+  teachers: Teacher[];
+  value: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const chosen = teachers.filter((teacher) => value.includes(teacher.userId));
+  const text = query.trim().toLowerCase();
+  const options = text
+    ? teachers
+        .filter((teacher) => !value.includes(teacher.userId))
+        .filter((teacher) => teacher.fullName.toLowerCase().includes(text))
+        .slice(0, 8)
+    : [];
+  return (
+    <div className="repo-search-picker repo-form-field--wide">
+      <span className="repo-search-picker__label">Responsables</span>
+      {chosen.length > 0 && (
+        <div className="repo-chip-list">
+          {chosen.map((teacher) => (
+            <span className="repo-filter-chip" key={teacher.userId}>
+              {teacher.fullName}
+              <button
+                type="button"
+                aria-label={`Quitar a ${teacher.fullName}`}
+                onClick={() => onChange(value.filter((id) => id !== teacher.userId))}
+              >
+                <X size={16} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="repo-search-picker__inputs">
+        <input
+          type="search"
+          aria-label="Buscar docente"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Buscar docente para agregar"
+        />
+      </div>
+      {text && (
+        <ul className="repo-search-picker__results">
+          {options.length === 0 ? (
+            <li className="repo-search-picker__note">Ningún docente coincide con «{query.trim()}».</li>
+          ) : (
+            options.map((teacher) => (
+              <li key={teacher.userId}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange([...value, teacher.userId]);
+                    setQuery("");
+                  }}
+                >
+                  <strong>{teacher.fullName}</strong>
+                  {teacher.email && <small>{teacher.email}</small>}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {!chosen.length && !text && <small>Sin responsables: se mostrarán los autores de sus materiales.</small>}
+    </div>
+  );
+}
+
+/**
+ * Bloques del curso dictado: any number of theory, practice and seminar blocks, grouped by
+ * section, each with its responsible teachers; and the coordinator of the course.
+ */
 export function CourseBlocksManagement() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courseOfferingId, setCourseOfferingId] = useState("");
-  const [configuration, setConfiguration] =
-    useState<CourseBlockConfiguration>();
+  const [configuration, setConfiguration] = useState<CourseBlockConfiguration>();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [principalTeacherId, setPrincipalTeacherId] = useState("");
-  const [blockDrafts, setBlockDrafts] = useState<Record<number, BlockDraft>>({});
-  const [loading, setLoading] = useState(true);
+  const [coordinatorId, setCoordinatorId] = useState("");
+  const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
-  const [deletingBlock, setDeletingBlock] =
-    useState<BlockConfigurationItem | null>(null);
+  const [editing, setEditing] = useState<BlockConfigurationItem | "new" | null>(null);
+  const [form, setForm] = useState<BlockForm>(emptyForm);
+  const [deleting, setDeleting] = useState<BlockConfigurationItem | null>(null);
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const teacherData = await repositoryService.getTeachers();
-      setTeachers(teacherData.users);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo cargar la configuración de cursos",
-      );
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    repositoryService
+      .getTeachers()
+      .then((data) => setTeachers(data.users))
+      .catch((reason: Error) => setError(reason.message));
   }, []);
 
   const loadConfiguration = useCallback(async () => {
@@ -58,165 +148,115 @@ export function CourseBlocksManagement() {
     try {
       const [configurationData, enrollmentData] = await Promise.all([
         repositoryService.getBlockConfiguration(Number(courseOfferingId)),
-        repositoryService.getEnrollments({
-          courseOfferingId: Number(courseOfferingId),
-        }),
+        repositoryService.getEnrollments({ courseOfferingId: Number(courseOfferingId) }),
       ]);
       setConfiguration(configurationData);
-      setEnrollments(
-        enrollmentData.enrollments.filter(
-          (enrollment) => enrollment.status === "ACTIVE",
-        ),
-      );
+      setEnrollments(enrollmentData.enrollments.filter((enrollment) => enrollment.status === "ACTIVE"));
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo cargar la configuración del curso",
-      );
+      setError(errorMessage(reason, "No se pudo cargar la configuración del curso dictado"));
     } finally {
       setLoading(false);
     }
   }, [courseOfferingId]);
 
   useEffect(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
-
-  useEffect(() => {
     void loadConfiguration();
   }, [loadConfiguration]);
 
   useEffect(() => {
-    if (!configuration) return;
-    setPrincipalTeacherId(String(configuration.principalTeacherId || ""));
-    setBlockDrafts(
-      Object.fromEntries(
-        configuration.blocks.map((block) => [
-          block.blockId,
-          {
-            name: block.name,
-            maxCapacity: String(block.maxCapacity),
-            teacherId: String(block.teacherId || ""),
-          },
-        ]),
-      ),
-    );
+    setCoordinatorId(String(configuration?.principalTeacherId || ""));
   }, [configuration]);
 
-  const theoryBlock = configuration?.blocks.find(
-    (block) => block.blockType === "THEORY",
-  );
-  const practiceBlocks = useMemo(
-    () =>
-      configuration?.blocks.filter((block) => block.blockType === "PRACTICE") ||
-      [],
-    [configuration],
-  );
+  // Blocks grouped by section; blocks without a section first.
+  const sections = useMemo(() => {
+    const groups = new Map<string, BlockConfigurationItem[]>();
+    for (const block of configuration?.blocks ?? []) {
+      const key = block.section ?? "";
+      groups.set(key, [...(groups.get(key) ?? []), block]);
+    }
+    return [...groups.entries()].sort(([a], [b]) =>
+      a.localeCompare(b, "es", { numeric: true }),
+    );
+  }, [configuration]);
+  const assignable = (configuration?.blocks ?? []).filter((block) => block.blockType !== "THEORY");
 
-  const savePrincipal = async () => {
-    if (!configuration || !principalTeacherId) return;
-    setSavingKey("principal");
+  const run = async (key: string, action: () => Promise<CourseBlockConfiguration>, fallback: string) => {
+    setSavingKey(key);
     setError("");
     try {
-      setConfiguration(
-        await repositoryService.assignPrincipalTeacher(
-          configuration.courseOfferingId,
-          Number(principalTeacherId),
-        ),
-      );
+      setConfiguration(await action());
+      return true;
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo asignar al docente principal",
-      );
+      setError(errorMessage(reason, fallback));
+      return false;
     } finally {
       setSavingKey("");
     }
   };
 
-  const addPracticeBlock = async () => {
+  const saveCoordinator = (teacherId: number | null) => {
     if (!configuration) return;
-    setSavingKey("new-block");
-    setError("");
-    try {
-      setConfiguration(
-        await repositoryService.createPracticeBlock({
-          courseOfferingId: configuration.courseOfferingId,
-          maxCapacity: 25,
-        }),
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo agregar el bloque de práctica",
-      );
-    } finally {
-      setSavingKey("");
-    }
+    void run(
+      "coordinator",
+      () => repositoryService.assignPrincipalTeacher(configuration.courseOfferingId, teacherId),
+      "No se pudo guardar el coordinador",
+    );
   };
 
-  const savePracticeBlock = async (block: BlockConfigurationItem) => {
-    const draft = blockDrafts[block.blockId];
-    if (!draft?.name.trim() || Number(draft.maxCapacity) < 1) return;
-    setSavingKey(`block-${block.blockId}`);
+  const openForm = (block: BlockConfigurationItem | "new") => {
     setError("");
-    try {
-      setConfiguration(
-        await repositoryService.updatePracticeBlock(block.blockId, {
-          name: draft.name.trim(),
-          maxCapacity: Number(draft.maxCapacity),
-          teacherId: draft.teacherId ? Number(draft.teacherId) : null,
-        }),
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo guardar el bloque de práctica",
-      );
-    } finally {
-      setSavingKey("");
-    }
+    setEditing(block);
+    setForm(
+      block === "new"
+        ? emptyForm
+        : {
+            blockType: block.blockType,
+            name: block.name,
+            section: block.section ?? "",
+            maxCapacity: String(block.maxCapacity),
+            teacherIds: block.teachers.map((teacher) => teacher.teacherId),
+          },
+    );
   };
 
-  const confirmDeleteBlock = async () => {
-    if (!deletingBlock) return;
-    setSavingKey(`delete-${deletingBlock.blockId}`);
-    setError("");
-    try {
-      setConfiguration(
-        await repositoryService.deletePracticeBlock(deletingBlock.blockId),
-      );
-      setDeletingBlock(null);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo eliminar el bloque de práctica",
-      );
-    } finally {
-      setSavingKey("");
+  const saveForm = async () => {
+    if (!configuration || !editing) return;
+    if (Number(form.maxCapacity) < 1) {
+      setError("La capacidad debe ser mayor que cero.");
+      return;
     }
+    const fields = {
+      blockType: form.blockType,
+      name: form.name.trim(),
+      section: form.section.trim() || null,
+      maxCapacity: Number(form.maxCapacity),
+      teacherIds: form.teacherIds,
+    };
+    const saved = await run(
+      "form",
+      () =>
+        editing === "new"
+          ? repositoryService.createBlock(configuration.courseOfferingId, fields)
+          : repositoryService.updateBlock(editing.blockId, fields),
+      "No se pudo guardar el bloque",
+    );
+    if (saved) setEditing(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    await run(`delete-${deleting.blockId}`, () => repositoryService.deleteBlock(deleting.blockId), "No se pudo eliminar el bloque");
+    setDeleting(null);
   };
 
   const assignStudent = async (enrollment: Enrollment, value: string) => {
     setSavingKey(`student-${enrollment.enrollmentId}`);
     setError("");
     try {
-      await repositoryService.assignEnrollmentPracticeBlock(
-        enrollment.enrollmentId,
-        value ? Number(value) : null,
-      );
+      await repositoryService.assignEnrollmentPracticeBlock(enrollment.enrollmentId, value ? Number(value) : null);
       await loadConfiguration();
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo asignar el bloque al alumno",
-      );
+      setError(errorMessage(reason, "No se pudo asignar el bloque al alumno"));
     } finally {
       setSavingKey("");
     }
@@ -227,55 +267,42 @@ export function CourseBlocksManagement() {
       <div className="repo-section-heading repo-blocks-heading">
         <div>
           <h2>Bloques y responsables</h2>
-          <p>Configura docentes y distribuye alumnos en los grupos de práctica.</p>
+          <p>Teorías, prácticas y seminarios de cada curso dictado, por sección.</p>
         </div>
         <button
           type="button"
           className="repo-outline-button"
-          onClick={() => void addPracticeBlock()}
-          disabled={
-            !configuration ||
-            practiceBlocks.length >= 3 ||
-            savingKey === "new-block"
-          }
+          onClick={() => openForm("new")}
+          disabled={!configuration}
         >
-          <Plus /> Agregar práctica
+          <Plus /> Agregar bloque
         </button>
       </div>
 
-      {error && <div className="repo-alert repo-alert--error">{error}</div>}
+      {error && !editing && <div className="repo-alert repo-alert--error">{error}</div>}
 
-      <OfferingPicker
-        className="repo-course-config-select"
-        value={courseOfferingId}
-        onChange={setCourseOfferingId}
-      />
+      <OfferingPicker className="repo-course-config-select" value={courseOfferingId} onChange={setCourseOfferingId} />
 
       {loading ? (
         <div className="repo-page-state">
           <span className="repo-spinner" /> Cargando configuración…
         </div>
       ) : !configuration ? (
-        <div className="repo-empty">Elige un curso para configurar sus bloques.</div>
+        <div className="repo-empty">Elige un curso dictado para configurar sus bloques.</div>
       ) : (
         <>
           <section className="repo-config-section">
             <div className="repo-config-section__heading">
               <div>
-                <h3>Docente principal</h3>
-                <p>
-                  Administra Teoría y todos los bloques de práctica del curso.
-                </p>
+                <h3>Coordinador</h3>
+                <p>Opcional. Administra todos los bloques del curso dictado.</p>
               </div>
             </div>
             <div className="repo-inline-assignment">
               <label className="repo-form-field">
-                <span>Responsable principal</span>
-                <select
-                  value={principalTeacherId}
-                  onChange={(event) => setPrincipalTeacherId(event.target.value)}
-                >
-                  <option value="">Seleccionar docente</option>
+                <span>Docente coordinador</span>
+                <select value={coordinatorId} onChange={(event) => setCoordinatorId(event.target.value)}>
+                  <option value="">Sin coordinador</option>
                   {teachers.map((teacher) => (
                     <option key={teacher.userId} value={teacher.userId}>
                       {teacher.fullName}
@@ -286,10 +313,10 @@ export function CourseBlocksManagement() {
               <button
                 type="button"
                 className="repo-outline-button"
-                onClick={() => void savePrincipal()}
-                disabled={!principalTeacherId || savingKey === "principal"}
+                onClick={() => saveCoordinator(coordinatorId ? Number(coordinatorId) : null)}
+                disabled={savingKey === "coordinator" || coordinatorId === String(configuration.principalTeacherId || "")}
               >
-                <Save /> Guardar responsable
+                <Save /> Guardar
               </button>
             </div>
           </section>
@@ -297,132 +324,84 @@ export function CourseBlocksManagement() {
           <section className="repo-config-section">
             <div className="repo-config-section__heading">
               <div>
-                <h3>Bloques del curso</h3>
+                <h3>Bloques</h3>
                 <p>
-                  Teoría es común a todos. Cada práctica admite un responsable y una
-                  capacidad propia.
+                  {blockSummary(configuration.blocks) || "Sin bloques"}. Un bloque con alumnos o materiales no se puede
+                  eliminar.
                 </p>
               </div>
             </div>
-            <div className="repo-block-config-grid">
-              {theoryBlock && (
-                <article className="repo-block-config-card repo-block-config-card--theory">
-                  <div className="repo-block-config-card__title">
-                    <div>
-                      <span>Bloque común</span>
-                      <h4>{theoryBlock.name}</h4>
-                    </div>
-                    <span className="repo-status repo-status--active">Todos</span>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Responsable</dt>
-                      <dd>{configuration.principalTeacherName || "Por asignar"}</dd>
-                    </div>
-                    <div>
-                      <dt>Acceso de alumnos</dt>
-                      <dd>{enrollments.length} matriculados</dd>
-                    </div>
-                  </dl>
-                </article>
-              )}
-              {practiceBlocks.map((block) => {
-                const draft = blockDrafts[block.blockId];
-                if (!draft) return null;
-                return (
-                  <article className="repo-block-config-card" key={block.blockId}>
-                    <div className="repo-block-config-card__title">
-                      <div>
-                        <span>Grupo de práctica</span>
-                        <h4>{block.name}</h4>
-                      </div>
-                      <button
-                        type="button"
-                        className="repo-table-action repo-table-action--danger"
-                        onClick={() => setDeletingBlock(block)}
-                      >
-                        <Trash2 /> Eliminar
-                      </button>
-                    </div>
-                    <label className="repo-form-field">
-                      <span>Nombre</span>
-                      <input
-                        value={draft.name}
-                        onChange={(event) =>
-                          setBlockDrafts({
-                            ...blockDrafts,
-                            [block.blockId]: { ...draft, name: event.target.value },
-                          })
-                        }
-                      />
-                    </label>
-                    <label className="repo-form-field">
-                      <span>Docente responsable</span>
-                      <select
-                        value={draft.teacherId}
-                        onChange={(event) =>
-                          setBlockDrafts({
-                            ...blockDrafts,
-                            [block.blockId]: {
-                              ...draft,
-                              teacherId: event.target.value,
-                            },
-                          })
-                        }
-                      >
-                        <option value="">Por asignar</option>
-                        {teachers.map((teacher) => (
-                          <option key={teacher.userId} value={teacher.userId}>
-                            {teacher.fullName}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="repo-form-field">
-                      <span>Capacidad máxima</span>
-                      <input
-                        type="number"
-                        min={Math.max(1, block.assignedStudentCount)}
-                        max={500}
-                        value={draft.maxCapacity}
-                        onChange={(event) =>
-                          setBlockDrafts({
-                            ...blockDrafts,
-                            [block.blockId]: {
-                              ...draft,
-                              maxCapacity: event.target.value,
-                            },
-                          })
-                        }
-                      />
-                      <small>{block.assignedStudentCount} alumnos asignados</small>
-                    </label>
-                    <button
-                      type="button"
-                      className="repo-outline-button"
-                      onClick={() => void savePracticeBlock(block)}
-                      disabled={savingKey === `block-${block.blockId}`}
-                    >
-                      <Save /> Guardar bloque
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-            {practiceBlocks.length === 0 && (
-              <p className="repo-muted-message">
-                Este curso todavía no tiene bloques de práctica.
-              </p>
-            )}
+            {sections.map(([section, blocks]) => (
+              <div className="repo-block-section" key={section || "sin-seccion"}>
+                {sections.length > 1 && <h4>{section ? `Sección ${section}` : "Sin sección"}</h4>}
+                <div className="repo-data-table-wrap">
+                  <table className="repo-data-table">
+                    <thead>
+                      <tr>
+                        <th>Bloque</th>
+                        <th>Responsables</th>
+                        <th>Capacidad</th>
+                        <th>Alumnos</th>
+                        <th>Materiales</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {blocks.map((block) => {
+                        const locked = block.assignedStudentCount > 0 || block.materialCount > 0;
+                        return (
+                          <tr key={block.blockId}>
+                            <td>
+                              {block.displayName}
+                              <span className="repo-table-sub">{BLOCK_TYPE_LABEL[block.blockType]}</span>
+                            </td>
+                            <td>
+                              {block.teachers.length ? (
+                                block.teachers.map((teacher) => teacher.name).join(", ")
+                              ) : (
+                                <span className="repo-table-sub">—</span>
+                              )}
+                            </td>
+                            <td>{block.maxCapacity}</td>
+                            <td>{block.assignedStudentCount}</td>
+                            <td>{block.materialCount}</td>
+                            <td>
+                              <div className="repo-table-actions">
+                                <button type="button" className="repo-table-action" onClick={() => openForm(block)}>
+                                  <Pencil /> Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="repo-table-action repo-table-action--danger"
+                                  onClick={() => setDeleting(block)}
+                                  disabled={locked || configuration.blocks.length <= 1}
+                                  title={
+                                    locked
+                                      ? "Tiene alumnos o materiales"
+                                      : configuration.blocks.length <= 1
+                                        ? "El curso dictado necesita al menos un bloque"
+                                        : undefined
+                                  }
+                                >
+                                  <Trash2 /> Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </section>
 
           <section className="repo-config-section">
             <div className="repo-config-section__heading">
               <div>
                 <h3>Distribución de alumnos</h3>
-                <p>
-                  Cada alumno accede a Teoría y únicamente a la práctica asignada.
-                </p>
+                <p>Cada alumno ve todas las teorías y solo la práctica o el seminario que se le asigne.</p>
               </div>
             </div>
             <div className="repo-data-table-wrap">
@@ -431,14 +410,14 @@ export function CourseBlocksManagement() {
                   <tr>
                     <th>Alumno</th>
                     <th>Código</th>
-                    <th>Bloque de práctica</th>
+                    <th>Práctica o seminario</th>
                   </tr>
                 </thead>
                 <tbody>
                   {enrollments.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="repo-empty">
-                        No hay alumnos matriculados en este curso.
+                        No hay alumnos matriculados en este curso dictado.
                       </td>
                     </tr>
                   ) : (
@@ -449,17 +428,13 @@ export function CourseBlocksManagement() {
                         <td>
                           <select
                             className="repo-table-select"
-                            aria-label={`Bloque práctico de ${enrollment.studentName}`}
+                            aria-label={`Bloque de ${enrollment.studentName}`}
                             value={enrollment.practiceBlockId || ""}
-                            onChange={(event) =>
-                              void assignStudent(enrollment, event.target.value)
-                            }
-                            disabled={
-                              savingKey === `student-${enrollment.enrollmentId}`
-                            }
+                            onChange={(event) => void assignStudent(enrollment, event.target.value)}
+                            disabled={savingKey === `student-${enrollment.enrollmentId}`}
                           >
-                            <option value="">Sin práctica asignada</option>
-                            {practiceBlocks.map((block) => (
+                            <option value="">Sin asignar</option>
+                            {assignable.map((block) => (
                               <option
                                 key={block.blockId}
                                 value={block.blockId}
@@ -468,8 +443,7 @@ export function CourseBlocksManagement() {
                                   enrollment.practiceBlockId !== block.blockId
                                 }
                               >
-                                {block.name} ({block.assignedStudentCount}/
-                                {block.maxCapacity})
+                                {block.displayName} ({block.assignedStudentCount}/{block.maxCapacity})
                               </option>
                             ))}
                           </select>
@@ -484,13 +458,88 @@ export function CourseBlocksManagement() {
         </>
       )}
 
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="repo-maint-dialog">
+          <DialogHeader>
+            <DialogTitle>{editing === "new" ? "Agregar bloque" : "Editar bloque"}</DialogTitle>
+            <DialogDescription>
+              El nombre visible se arma con el tipo, el grupo y la sección: «Práctica G1 · Sección 2».
+            </DialogDescription>
+          </DialogHeader>
+          <div className="repo-form-row">
+            <label className="repo-form-field">
+              <span>Tipo</span>
+              <select
+                value={form.blockType}
+                onChange={(event) => {
+                  const blockType = event.target.value as BlockType;
+                  setForm({
+                    ...form,
+                    blockType,
+                    maxCapacity: editing === "new" ? (blockType === "THEORY" ? "50" : "25") : form.maxCapacity,
+                  });
+                }}
+              >
+                {BLOCK_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {BLOCK_TYPE_LABEL[type]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="repo-form-field">
+              <span>Sección</span>
+              <input
+                value={form.section}
+                onChange={(event) => setForm({ ...form, section: event.target.value })}
+                placeholder="Opcional: 1, 2…"
+              />
+            </label>
+          </div>
+          <div className="repo-form-row">
+            <label className="repo-form-field">
+              <span>Grupo</span>
+              <input
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                placeholder="G1, 2, Laboratorio 3…"
+              />
+            </label>
+            <label className="repo-form-field">
+              <span>Capacidad</span>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={form.maxCapacity}
+                onChange={(event) => setForm({ ...form, maxCapacity: event.target.value })}
+              />
+            </label>
+          </div>
+          <TeacherMultiPicker
+            teachers={teachers}
+            value={form.teacherIds}
+            onChange={(teacherIds) => setForm({ ...form, teacherIds })}
+          />
+          {error && <div className="repo-alert repo-alert--error">{error}</div>}
+          <button
+            type="button"
+            className="repo-primary-button"
+            onClick={() => void saveForm()}
+            disabled={savingKey === "form"}
+          >
+            {savingKey === "form" ? "Guardando…" : editing === "new" ? "Agregar bloque" : "Guardar cambios"}
+          </button>
+        </DialogContent>
+      </Dialog>
+
       <ConfirmDialog
-        open={!!deletingBlock}
-        onOpenChange={(open) => !open && setDeletingBlock(null)}
-        title="Eliminar bloque de práctica"
-        description={`Se eliminará “${deletingBlock?.name || ""}”. Solo es posible si no tiene alumnos, semanas ni materiales.`}
+        open={!!deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Eliminar bloque"
+        description={`Se eliminará «${deleting?.displayName || ""}» con sus semanas vacías.`}
         pending={savingKey.startsWith("delete-")}
-        onConfirm={confirmDeleteBlock}
+        onConfirm={confirmDelete}
       />
     </div>
   );

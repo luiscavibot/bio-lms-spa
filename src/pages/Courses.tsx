@@ -13,6 +13,7 @@ import {
   type Semester,
 } from "@/services/repositoryService";
 import { authorsLine } from "@/lib/authors";
+import { blockSummary } from "@/lib/blocks";
 
 /** Courses per page; the list is always paged on the server. */
 const PAGE_SIZE = 30;
@@ -231,6 +232,9 @@ export function Courses() {
                 <p>{offering.programName}</p>
                 <p>Plan {offering.planCode}</p>
                 <p>{offering.semesterName}</p>
+                {offering.blocks.length > 1 && (
+                  <p className="repo-course-card__blocks">{blockSummary(offering.blocks)}</p>
+                )}
                 <Link
                   to={`/courses/${offering.offeringId}`}
                   state={{ from: params.toString() }}

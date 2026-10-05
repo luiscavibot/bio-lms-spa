@@ -3,7 +3,7 @@ import { httpClient } from "@/lib/httpClient";
 const API = "/api/v1";
 
 export type AcademicLevel = "UNDERGRADUATE" | "POSTGRADUATE";
-export type BlockType = "THEORY" | "PRACTICE";
+export type BlockType = "THEORY" | "PRACTICE" | "SEMINAR";
 export type MaterialCategory =
   | "EXTERNAL_LINK"
   | "PRACTICE_FILE"
@@ -14,13 +14,25 @@ export type MaterialCategory =
 export type UploadableMaterialCategory = "PRACTICE_FILE" | "CLASS_SLIDES";
 export type LinkMaterialSubtype = "VIDEO" | "ARTICLE" | "THESIS" | "WEBSITE";
 
+export interface BlockTeacher {
+  teacherId: number;
+  name: string;
+}
+
 export interface OfferingBlock {
   blockId: number;
+  /** Group within its type and section («G1», «2», «Laboratorio 3»). */
   name: string;
+  section?: string;
+  /** Type, group and section, ready to show («Práctica G1 · Sección 2»). */
+  displayName: string;
   blockType: BlockType;
   maxCapacity: number;
   teacherId?: number;
   teacherName?: string;
+  teachers: BlockTeacher[];
+  /** Authors of the block's materials, shown when it has no responsible. */
+  authors: string[];
   assignedStudentCount: number;
   hasSyllabus: boolean;
   canManage: boolean;
@@ -145,11 +157,23 @@ export interface Enrollment {
 export interface BlockConfigurationItem {
   blockId: number;
   name: string;
+  section?: string;
+  displayName: string;
   blockType: BlockType;
   maxCapacity: number;
   teacherId?: number;
   teacherName?: string;
+  teachers: BlockTeacher[];
   assignedStudentCount: number;
+  materialCount: number;
+}
+
+export interface BlockFields {
+  blockType: BlockType;
+  name: string;
+  section: string | null;
+  maxCapacity: number;
+  teacherIds: number[];
 }
 
 export interface CourseBlockConfiguration {
@@ -230,7 +254,9 @@ export const repositoryService = {
     courseId: number;
     semesterId: number;
     teacherId?: number;
+    theoryBlockCount: number;
     practiceBlockCount: number;
+    seminarBlockCount: number;
     startDate: string;
     endDate: string;
   }) {
@@ -474,26 +500,23 @@ export const repositoryService = {
       `${API}/blocks/configuration/${courseOfferingId}`,
     );
   },
-  assignPrincipalTeacher(courseOfferingId: number, teacherId: number) {
+  /** Coordinator of the offering; null removes it. */
+  assignPrincipalTeacher(courseOfferingId: number, teacherId: number | null) {
     return httpClient.put<CourseBlockConfiguration>(
       `${API}/blocks/course-offerings/${courseOfferingId}/principal`,
       { teacherId },
     );
   },
-  createPracticeBlock(data: {
-    courseOfferingId: number;
-    maxCapacity: number;
-    teacherId?: number;
-  }) {
-    return httpClient.post<CourseBlockConfiguration>(`${API}/blocks/practice`, data);
+  createBlock(courseOfferingId: number, data: BlockFields) {
+    return httpClient.post<CourseBlockConfiguration>(`${API}/blocks`, {
+      courseOfferingId,
+      ...data,
+    });
   },
-  updatePracticeBlock(
-    id: number,
-    data: { name: string; maxCapacity: number; teacherId: number | null },
-  ) {
+  updateBlock(id: number, data: Partial<BlockFields>) {
     return httpClient.patch<CourseBlockConfiguration>(`${API}/blocks/${id}`, data);
   },
-  deletePracticeBlock(id: number) {
+  deleteBlock(id: number) {
     return httpClient.delete<CourseBlockConfiguration>(`${API}/blocks/${id}`);
   },
   getWeeks(blockId: number) {

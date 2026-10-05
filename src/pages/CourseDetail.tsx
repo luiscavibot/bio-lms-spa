@@ -18,6 +18,7 @@ import {
   type Week,
 } from "@/services/repositoryService";
 import { authorsLine } from "@/lib/authors";
+import { BlockNavigator } from "@/components/BlockNavigator";
 
 const materialLabels: Record<MaterialCategory, string> = {
   EXTERNAL_LINK: "Enlace externo",
@@ -574,13 +575,6 @@ export function CourseDetail() {
   );
   const canManage = selectedBlock?.canManage === true;
 
-  // The block type is shown only when the name does not already say it (imported blocks are
-  // named «Teoría»).
-  const selectedBlockType = selectedBlock?.blockType === "THEORY" ? "Teoría" : "Práctica";
-  const showBlockType =
-    !!selectedBlock &&
-    selectedBlock.name.trim().toLowerCase() !== selectedBlockType.toLowerCase();
-
   return (
     <section>
       <div className="repo-breadcrumb">
@@ -617,41 +611,32 @@ export function CourseDetail() {
             <p className="repo-course-description">{offering.description}</p>
           )}
         </div>
-        {offering.blocks.length > 1 && (
-          <label className="repo-select-field repo-block-select">
-            <span>Bloque</span>
-            <select
-              value={blockId}
-              onChange={(event) => setBlockId(event.target.value)}
-            >
-              {offering.blocks.map((block) => (
-                <option key={block.blockId} value={block.blockId}>
-                  {block.name}
-                  {block.teacherName ? ` — ${block.teacherName}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
       </div>
+
+      <BlockNavigator
+        blocks={offering.blocks}
+        selectedId={selectedBlock?.blockId}
+        onSelect={(id) => setBlockId(String(id))}
+      />
 
       {selectedBlock && (
         <div className="repo-block-access-note">
           <div className="repo-block-fact">
             <span>Bloque</span>
-            <strong>{selectedBlock.name}</strong>
+            <strong>{selectedBlock.displayName}</strong>
           </div>
-          {showBlockType && (
+          {selectedBlock.teachers.length > 0 ? (
             <div className="repo-block-fact">
-              <span>Tipo</span>
-              <strong>{selectedBlockType}</strong>
+              <span>{selectedBlock.teachers.length > 1 ? "Responsables" : "Responsable"}</span>
+              <strong>{selectedBlock.teachers.map((teacher) => teacher.name).join(", ")}</strong>
             </div>
-          )}
-          {selectedBlock.teacherName && (
-            <div className="repo-block-fact">
-              <span>Responsable</span>
-              <strong>{selectedBlock.teacherName}</strong>
-            </div>
+          ) : (
+            selectedBlock.authors.length > 0 && (
+              <div className="repo-block-fact">
+                <span>Publicado por</span>
+                <strong>{authorsLine(selectedBlock.authors)}</strong>
+              </div>
+            )
           )}
           {selectedBlock.hasSyllabus && (
             <button
