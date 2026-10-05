@@ -574,6 +574,15 @@ export function CourseDetail() {
   );
   const canManage = selectedBlock?.canManage === true;
 
+  // Next to the block name: its teacher, or else its type unless the name already says it
+  // (imported blocks are named «Teoría»).
+  const selectedBlockType = selectedBlock?.blockType === "THEORY" ? "Teoría" : "Práctica";
+  const selectedBlockDetail = selectedBlock?.teacherName
+    ? `Responsable: ${selectedBlock.teacherName}`
+    : selectedBlock && selectedBlock.name.trim().toLowerCase() !== selectedBlockType.toLowerCase()
+      ? selectedBlockType
+      : "";
+
   return (
     <section>
       <div className="repo-breadcrumb">
@@ -626,13 +635,7 @@ export function CourseDetail() {
       {selectedBlock && (
         <div className="repo-block-access-note">
           <strong>{selectedBlock.name}</strong>
-          <span>
-            {selectedBlock.teacherName
-              ? `Responsable: ${selectedBlock.teacherName}`
-              : selectedBlock.blockType === "THEORY"
-                ? "Teoría"
-                : "Práctica"}
-          </span>
+          {selectedBlockDetail && <span>{selectedBlockDetail}</span>}
           {selectedBlock.hasSyllabus && (
             <button
               type="button"
