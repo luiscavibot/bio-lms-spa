@@ -66,7 +66,7 @@ export function OfferingPicker({
 
   return (
     <div className={`repo-offering-picker ${className}`}>
-      <span>Curso y semestre</span>
+      <span>Oferta (curso y semestre)</span>
       <div className="repo-offering-picker__filters">
         <select
           aria-label="Semestre"
@@ -95,7 +95,7 @@ export function OfferingPicker({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled || loading}
       >
-        <option value="">{loading ? "Buscando…" : "Seleccionar curso"}</option>
+        <option value="">{loading ? "Buscando…" : "Seleccionar oferta"}</option>
         {options.map((offering) => (
           <option key={offering.offeringId} value={offering.offeringId}>
             {offering.courseName} ({offering.courseCode}) — {offering.semesterName}
@@ -107,7 +107,7 @@ export function OfferingPicker({
           Se muestran {RESULT_LIMIT} de {total}. Elige un semestre o escribe parte del nombre.
         </small>
       )}
-      {!loading && !disabled && total === 0 && <small>No hay cursos con ese filtro.</small>}
+      {!loading && !disabled && total === 0 && <small>No hay ofertas con ese filtro.</small>}
     </div>
   );
 }

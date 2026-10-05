@@ -57,6 +57,7 @@ export interface Offering {
 // A type alias, not an interface, so it can be passed as query-string parameters.
 export type OfferingFilters = {
   search?: string;
+  courseId?: number;
   programId?: number;
   planId?: number;
   semesterId?: number;
@@ -68,6 +69,22 @@ export interface OfferingFacets {
   programIds: number[];
   semesterIds: number[];
   planIds: number[];
+}
+
+/** A subject of the curriculum; it is taught in one offering per semester. */
+export interface Course {
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  credits: number;
+  programId: number;
+  programName: string;
+  planId: number;
+  planCode: string;
+  academicLevel: AcademicLevel;
+  description?: string;
+  isActive: boolean;
+  offeringCount: number;
 }
 
 export interface Program {
@@ -208,23 +225,40 @@ export const repositoryService = {
   getOffering(id: number) {
     return httpClient.get<Offering>(`${API}/course-offerings/${id}`);
   },
+  /** New offering (a course taught in one semester) of an existing course. */
   createOffering(data: {
-    courseName: string;
-    courseCode?: string;
-    description: string;
-    credits?: number;
-    programId: number;
-    planId: number;
+    courseId: number;
     semesterId: number;
-    teacherId: number;
+    teacherId?: number;
     practiceBlockCount: number;
     startDate: string;
     endDate: string;
   }) {
-    return httpClient.post<Offering>(
-      `${API}/course-offerings/with-structure`,
-      data,
+    return httpClient.post<Offering>(`${API}/course-offerings`, data);
+  },
+  getCourses(
+    filters: {
+      search?: string;
+      programId?: number;
+      planId?: number;
+      academicLevel?: AcademicLevel;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
+    return httpClient.get<{ courses: Course[]; total: number }>(
+      `${API}/courses${queryString(filters)}`,
     );
+  },
+  createCourse(data: {
+    courseName: string;
+    courseCode?: string;
+    description?: string;
+    credits: number;
+    programId: number;
+    planId: number;
+  }) {
+    return httpClient.post<Course>(`${API}/courses`, data);
   },
   deleteOffering(id: number) {
     return httpClient.delete<void>(`${API}/course-offerings/${id}`);

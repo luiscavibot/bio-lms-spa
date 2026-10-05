@@ -15,7 +15,8 @@ import { EnrollmentsManagement } from "@/components/maintenance/EnrollmentsManag
 import { StudentsManagement } from "@/components/maintenance/StudentsManagement";
 import { CourseBlocksManagement } from "@/components/maintenance/CourseBlocksManagement";
 import { CurriculumPlansManagement } from "@/components/maintenance/CurriculumPlansManagement";
-import { Pagination } from "@/components/ui/pagination";
+import { CourseCatalogSection } from "@/components/maintenance/CourseCatalogSection";
+import { OfferingsSection } from "@/components/maintenance/OfferingsSection";
 import {
   Dialog,
   DialogContent,
@@ -26,8 +27,7 @@ import {
 import {
   repositoryService,
   type AcademicLevel,
-  type CurriculumPlan,
-  type Offering,
+  type Course,
   type Program,
   type Semester,
   type Teacher,
@@ -36,6 +36,7 @@ import { copyText } from "@/lib/copyText";
 
 type Section =
   | "courses"
+  | "offerings"
   | "blocks"
   | "programs"
   | "plans"
@@ -47,6 +48,7 @@ type View = "list" | "create";
 
 const maintenanceSections: { id: Section; label: string }[] = [
   { id: "courses", label: "Cursos" },
+  { id: "offerings", label: "Ofertas" },
   { id: "blocks", label: "Bloques" },
   { id: "programs", label: "Programas" },
   { id: "plans", label: "Planes" },
@@ -56,9 +58,6 @@ const maintenanceSections: { id: Section; label: string }[] = [
   { id: "enrollments", label: "Matrículas" },
 ];
 
-
-/** Rows per page in the maintenance course table. */
-const MAINTENANCE_PAGE_SIZE = 25;
 function generateTemporaryPassword() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -73,711 +72,6 @@ function InlineError({ message }: { message: string }) {
   return message ? (
     <div className="repo-alert repo-alert--error">{message}</div>
   ) : null;
-}
-
-function formatCourseDate(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  })
-    .format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
-    .replace(".", "");
-}
-
-function CoursesSection() {
-  const [view, setView] = useState<View>("list");
-  const [offerings, setOfferings] = useState<Offering[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [plans, setPlans] = useState<CurriculumPlan[]>([]);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [search, setSearchValue] = useState("");
-  const [semesterFilter, setSemesterValue] = useState("");
-  const [levelFilter, setLevelValue] = useState("");
-  const [planFilter, setPlanValue] = useState("");
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  // Any filter change goes back to the first page.
-  const resetting = (setter: (value: string) => void) => (value: string) => {
-    setter(value);
-    setPage(1);
-  };
-  const setSearch = resetting(setSearchValue);
-  const setSemesterFilter = resetting(setSemesterValue);
-  const setLevelFilter = resetting(setLevelValue);
-  const setPlanFilter = resetting(setPlanValue);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [editingCourse, setEditingCourse] = useState<Offering | null>(null);
-  const [deletingCourse, setDeletingCourse] = useState<Offering | null>(null);
-  const [deletePending, setDeletePending] = useState(false);
-  const [editForm, setEditForm] = useState({
-    courseName: "",
-    courseCode: "",
-    description: "",
-    credits: "3",
-    programId: "",
-    planId: "",
-    startDate: "",
-    endDate: "",
-  });
-  const [form, setForm] = useState({
-    courseName: "",
-    description: "",
-    teacherId: "",
-    academicLevel: "" as AcademicLevel | "",
-    programId: "",
-    planId: "",
-    semesterId: "",
-    practiceBlockCount: "1",
-    startDate: "",
-    endDate: "",
-  });
-
-  // Catalogs for the filters and the create form are loaded once.
-  useEffect(() => {
-    Promise.all([
-      repositoryService.getPrograms(),
-      repositoryService.getCurriculumPlans(),
-      repositoryService.getSemesters(),
-      repositoryService.getTeachers(),
-    ])
-      .then(([programData, planData, semesterData, teacherData]) => {
-        setPrograms(programData.programs.filter((program) => program.isActive));
-        setPlans(planData.plans);
-        setSemesters(semesterData.semesters);
-        setTeachers(teacherData.users);
-        const active = semesterData.semesters.find((semester) => semester.isActive);
-        setForm((current) => ({
-          ...current,
-          semesterId: current.semesterId || (active ? String(active.semesterId) : ""),
-          startDate: current.startDate || (active?.startDate ?? "").slice(0, 10),
-          endDate: current.endDate || (active?.endDate ?? "").slice(0, 10),
-        }));
-      })
-      .catch((reason: Error) => setError(reason.message));
-  }, []);
-
-  // Only the visible page of offerings is requested; the server applies the filters.
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await repositoryService.getOfferings({
-        search: search.trim() || undefined,
-        semesterId: semesterFilter ? Number(semesterFilter) : undefined,
-        academicLevel: (levelFilter || undefined) as AcademicLevel | undefined,
-        planId: planFilter ? Number(planFilter) : undefined,
-        page,
-        limit: MAINTENANCE_PAGE_SIZE,
-      });
-      setOfferings(data.offerings);
-      setTotal(data.total);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudieron cargar los cursos",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [search, semesterFilter, levelFilter, planFilter, page]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void load(), 250);
-    return () => window.clearTimeout(timeout);
-  }, [load]);
-
-  const save = async () => {
-    if (
-      !form.courseName.trim() ||
-      !form.description.trim() ||
-      !form.teacherId ||
-      !form.programId ||
-      !form.planId ||
-      !form.semesterId ||
-      !form.startDate ||
-      !form.endDate
-    ) {
-      setError(
-        "Completa todos los datos del curso, incluidas las fechas de inicio y fin.",
-      );
-      return;
-    }
-    if (form.endDate < form.startDate) {
-      setError("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await repositoryService.createOffering({
-        courseName: form.courseName.trim(),
-        description: form.description.trim(),
-        programId: Number(form.programId),
-        planId: Number(form.planId),
-        semesterId: Number(form.semesterId),
-        teacherId: Number(form.teacherId),
-        practiceBlockCount: Number(form.practiceBlockCount),
-        startDate: form.startDate,
-        endDate: form.endDate,
-      });
-      setForm((current) => ({
-        ...current,
-        courseName: "",
-        description: "",
-        teacherId: "",
-        programId: "",
-        planId: "",
-        practiceBlockCount: "1",
-      }));
-      setView("list");
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo agregar el curso",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openCourseEditor = (offering: Offering) => {
-    setError("");
-    setEditingCourse(offering);
-    setEditForm({
-      courseName: offering.courseName,
-      courseCode: offering.courseCode,
-      description: offering.description || "",
-      credits: String(offering.credits),
-      programId: String(offering.programId),
-      planId: String(offering.planId),
-      startDate: offering.startDate.slice(0, 10),
-      endDate: offering.endDate.slice(0, 10),
-    });
-  };
-
-  const saveCourseEdit = async () => {
-    if (
-      !editingCourse ||
-      !editForm.courseName.trim() ||
-      !editForm.courseCode.trim() ||
-      !editForm.description.trim() ||
-      !editForm.programId ||
-      !editForm.planId ||
-      !editForm.startDate ||
-      !editForm.endDate ||
-      Number(editForm.credits) < 1
-    ) {
-      setError("Completa todos los datos obligatorios del curso.");
-      return;
-    }
-    if (editForm.endDate < editForm.startDate) {
-      setError("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await repositoryService.updateCourse(editingCourse.courseId, {
-        courseName: editForm.courseName.trim(),
-        courseCode: editForm.courseCode.trim().toUpperCase(),
-        description: editForm.description.trim(),
-        credits: Number(editForm.credits),
-        programId: Number(editForm.programId),
-        planId: Number(editForm.planId),
-      });
-      await repositoryService.updateOfferingSchedule(editingCourse.offeringId, {
-        startDate: editForm.startDate,
-        endDate: editForm.endDate,
-      });
-      setEditingCourse(null);
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "No se pudo editar el curso",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDeleteCourse = async () => {
-    if (!deletingCourse) return;
-    setDeletePending(true);
-    setError("");
-    try {
-      // Several editions share a course after the Classroom import: only this one is removed.
-      await repositoryService.deleteOffering(deletingCourse.offeringId);
-      setDeletingCourse(null);
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo eliminar el curso",
-      );
-    } finally {
-      setDeletePending(false);
-    }
-  };
-
-  if (view === "create") {
-    const filteredPrograms = programs.filter(
-      (program) =>
-        !form.academicLevel || program.academicLevel === form.academicLevel,
-    );
-    return (
-      <div className="repo-maint-content">
-        <button
-          type="button"
-          className="repo-back-button"
-          onClick={() => setView("list")}
-        >
-          ‹ Volver a cursos
-        </button>
-        <div className="repo-section-heading">
-          <h2>Agregar curso</h2>
-          <button
-            type="button"
-            className="repo-outline-button"
-            onClick={save}
-            disabled={saving}
-          >
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
-        </div>
-        <InlineError message={error} />
-        <div className="repo-maint-form">
-          <label className="repo-form-field repo-form-field--wide">
-            <span>Nombre del curso</span>
-            <input
-              value={form.courseName}
-              onChange={(event) =>
-                setForm({ ...form, courseName: event.target.value })
-              }
-            />
-          </label>
-          <label className="repo-form-field repo-form-field--wide">
-            <span>Descripción del curso</span>
-            <textarea
-              rows={5}
-              required
-              maxLength={2000}
-              value={form.description}
-              onChange={(event) =>
-                setForm({ ...form, description: event.target.value })
-              }
-            />
-          </label>
-          <label className="repo-form-field">
-            <span>Docente principal</span>
-            <select
-              value={form.teacherId}
-              onChange={(event) =>
-                setForm({ ...form, teacherId: event.target.value })
-              }
-            >
-              <option value="">Seleccionar docente</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.userId} value={teacher.userId}>
-                  {teacher.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Tipo de programa</span>
-              <select
-                value={form.academicLevel}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    academicLevel: event.target.value as AcademicLevel,
-                    programId: "",
-                  })
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="UNDERGRADUATE">Pregrado</option>
-                <option value="POSTGRADUATE">Posgrado</option>
-              </select>
-            </label>
-            <label className="repo-form-field">
-              <span>Programa</span>
-              <select
-                value={form.programId}
-                onChange={(event) =>
-                  setForm({ ...form, programId: event.target.value })
-                }
-              >
-                <option value="">Seleccionar</option>
-                {filteredPrograms.map((program) => (
-                  <option key={program.programId} value={program.programId}>
-                    {program.programName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="repo-form-field">
-            <span>Semestre</span>
-            <select
-              value={form.semesterId}
-              onChange={(event) =>
-                setForm({ ...form, semesterId: event.target.value })
-              }
-            >
-              <option value="">Seleccionar</option>
-              {semesters.map((semester) => (
-                <option key={semester.semesterId} value={semester.semesterId}>
-                  {semester.semesterName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Fecha de inicio del curso</span>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(event) =>
-                  setForm({ ...form, startDate: event.target.value })
-                }
-              />
-            </label>
-            <label className="repo-form-field">
-              <span>Fecha de fin del curso</span>
-              <input
-                type="date"
-                min={form.startDate}
-                value={form.endDate}
-                onChange={(event) =>
-                  setForm({ ...form, endDate: event.target.value })
-                }
-              />
-            </label>
-          </div>
-          <p className="repo-form-hint">
-            Fechas sugeridas según el último curso configurado. Al guardar se
-            crearán automáticamente todas las semanas del curso y sus bloques.
-          </p>
-          <label className="repo-form-field">
-            <span>Plan curricular</span>
-            <select
-              value={form.planId}
-              onChange={(event) =>
-                setForm({ ...form, planId: event.target.value })
-              }
-            >
-              <option value="">Seleccionar</option>
-              {plans
-                .filter((plan) => plan.isActive)
-                .map((plan) => (
-                  <option key={plan.planId} value={plan.planId}>
-                    {plan.planCode}
-                  </option>
-                ))}
-            </select>
-            <small>Todo curso pertenece a un único plan curricular.</small>
-          </label>
-          <label className="repo-form-field">
-            <span>Bloques de práctica</span>
-            <select
-              value={form.practiceBlockCount}
-              onChange={(event) =>
-                setForm({ ...form, practiceBlockCount: event.target.value })
-              }
-            >
-              <option value="0">Sin práctica</option>
-              <option value="1">1 bloque — Práctica A</option>
-              <option value="2">2 bloques — Prácticas A y B</option>
-              <option value="3">3 bloques — Prácticas A, B y C</option>
-            </select>
-            <small>El bloque de Teoría se crea siempre y es común a todos.</small>
-          </label>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="repo-maint-content">
-      <div className="repo-section-heading">
-        <h2>Cursos</h2>
-        <button
-          type="button"
-          className="repo-outline-button"
-          onClick={() => setView("create")}
-        >
-          <Plus /> Agregar curso
-        </button>
-      </div>
-      <InlineError message={error} />
-      <div className="repo-table-filters">
-        <label className="repo-search-field">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar"
-          />
-          <Search />
-        </label>
-        <label className="repo-select-field">
-          <span>Semestre</span>
-          <select
-            value={semesterFilter}
-            onChange={(event) => setSemesterFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            {semesters.map((semester) => (
-              <option key={semester.semesterId} value={semester.semesterId}>
-                {semester.semesterName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="repo-select-field">
-          <span>Tipo de programa</span>
-          <select
-            value={levelFilter}
-            onChange={(event) => setLevelFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value="UNDERGRADUATE">Pregrado</option>
-            <option value="POSTGRADUATE">Posgrado</option>
-          </select>
-        </label>
-        <label className="repo-select-field">
-          <span>Plan curricular</span>
-          <select
-            value={planFilter}
-            onChange={(event) => setPlanFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            {plans.map((plan) => (
-              <option key={plan.planId} value={plan.planId}>
-                {plan.planCode}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="repo-data-table-wrap">
-        <table className="repo-data-table">
-          <thead>
-            <tr>
-              <th>Nombre del curso</th>
-              <th>Programa</th>
-              <th>Plan</th>
-              <th>Tipo de programa</th>
-              <th>Semestre</th>
-              <th>Fechas</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7}>Cargando…</td>
-              </tr>
-            ) : offerings.length ? (
-              offerings.map((offering) => (
-                <tr key={offering.offeringId}>
-                  <td>{offering.courseName}</td>
-                  <td>{offering.programName}</td>
-                  <td>{offering.planCode}</td>
-                  <td>
-                    {offering.academicLevel === "UNDERGRADUATE"
-                      ? "Pregrado"
-                      : "Posgrado"}
-                  </td>
-                  <td>{offering.semesterName}</td>
-                  <td>
-                    {formatCourseDate(offering.startDate)} –{" "}
-                    {formatCourseDate(offering.endDate)}
-                  </td>
-                  <td>
-                    <div className="repo-table-actions">
-                      <button
-                        type="button"
-                        className="repo-table-action"
-                        onClick={() => openCourseEditor(offering)}
-                      >
-                        <Pencil /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="repo-table-action repo-table-action--danger"
-                        onClick={() => setDeletingCourse(offering)}
-                      >
-                        <Trash2 /> Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7}>No hay cursos para mostrar.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Pagination
-        page={page}
-        pageSize={MAINTENANCE_PAGE_SIZE}
-        total={total}
-        onPageChange={setPage}
-        label="cursos"
-      />
-      <Dialog
-        open={!!editingCourse}
-        onOpenChange={(open) => !open && setEditingCourse(null)}
-      >
-        <DialogContent className="repo-maint-dialog">
-          <DialogHeader>
-            <DialogTitle>Editar curso</DialogTitle>
-            <DialogDescription>
-              Actualiza la información general y el calendario del curso.
-            </DialogDescription>
-          </DialogHeader>
-          <label className="repo-form-field">
-            <span>Nombre del curso</span>
-            <input
-              value={editForm.courseName}
-              onChange={(event) =>
-                setEditForm({ ...editForm, courseName: event.target.value })
-              }
-            />
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Código</span>
-              <input
-                value={editForm.courseCode}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, courseCode: event.target.value })
-                }
-              />
-            </label>
-            <label className="repo-form-field">
-              <span>Créditos</span>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={editForm.credits}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, credits: event.target.value })
-                }
-              />
-            </label>
-          </div>
-          <label className="repo-form-field">
-            <span>Programa</span>
-            <select
-              value={editForm.programId}
-              onChange={(event) =>
-                setEditForm({ ...editForm, programId: event.target.value })
-              }
-            >
-              {programs.map((program) => (
-                <option key={program.programId} value={program.programId}>
-                  {program.programName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="repo-form-field">
-            <span>Plan curricular</span>
-            <select
-              value={editForm.planId}
-              onChange={(event) =>
-                setEditForm({ ...editForm, planId: event.target.value })
-              }
-            >
-              {plans
-                .filter(
-                  (plan) =>
-                    plan.isActive || plan.planId === editingCourse?.planId,
-                )
-                .map((plan) => (
-                  <option key={plan.planId} value={plan.planId}>
-                    {plan.planCode}
-                    {plan.isActive ? "" : " — Inactivo"}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Fecha de inicio del curso</span>
-              <input
-                type="date"
-                value={editForm.startDate}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, startDate: event.target.value })
-                }
-              />
-            </label>
-            <label className="repo-form-field">
-              <span>Fecha de fin del curso</span>
-              <input
-                type="date"
-                min={editForm.startDate}
-                value={editForm.endDate}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, endDate: event.target.value })
-                }
-              />
-            </label>
-          </div>
-          <p className="repo-form-hint">
-            El calendario sincroniza las semanas de todos los bloques. No se
-            eliminarán semanas que ya tengan contenido.
-          </p>
-          <label className="repo-form-field">
-            <span>Descripción del curso</span>
-            <textarea
-              rows={5}
-              maxLength={2000}
-              value={editForm.description}
-              onChange={(event) =>
-                setEditForm({ ...editForm, description: event.target.value })
-              }
-            />
-          </label>
-          <InlineError message={error} />
-          <button
-            type="button"
-            className="repo-primary-button"
-            onClick={() => void saveCourseEdit()}
-            disabled={saving || !editForm.description.trim()}
-          >
-            {saving ? "Guardando…" : "Guardar cambios"}
-          </button>
-        </DialogContent>
-      </Dialog>
-      <ConfirmDialog
-        open={!!deletingCourse}
-        onOpenChange={(open) => !open && setDeletingCourse(null)}
-        title="Eliminar edición del curso"
-        description={`Se eliminará la edición ${deletingCourse?.semesterName || ""} de “${deletingCourse?.courseName || ""}”. Las demás ediciones del curso se conservan.`}
-        pending={deletePending}
-        onConfirm={confirmDeleteCourse}
-      />
-    </div>
-  );
 }
 
 function ProgramsSection() {
@@ -1942,6 +1236,16 @@ function TeachersSection() {
 export function Maintenance() {
   const backendUser = useAuthStore((state) => state.backendUser);
   const [section, setSection] = useState<Section>("courses");
+  // Opening Ofertas from a course: filtered by it, or creating an offering of it.
+  const [offeringContext, setOfferingContext] = useState<{
+    course: Course;
+    creating: boolean;
+    key: number;
+  }>();
+  const openOfferings = (course: Course, creating: boolean) => {
+    setOfferingContext({ course, creating, key: Date.now() });
+    setSection("offerings");
+  };
   if (!backendUser)
     return (
       <div className="repo-page-state">
@@ -1959,14 +1263,29 @@ export function Maintenance() {
             <button
               type="button"
               key={item.id}
-              onClick={() => setSection(item.id)}
+              onClick={() => {
+                setOfferingContext(undefined);
+                setSection(item.id);
+              }}
               className={section === item.id ? "active" : ""}
             >
               {item.label}
             </button>
           ))}
         </aside>
-        {section === "courses" && <CoursesSection />}
+        {section === "courses" && (
+          <CourseCatalogSection
+            onShowOfferings={(course) => openOfferings(course, false)}
+            onCreateOffering={(course) => openOfferings(course, true)}
+          />
+        )}
+        {section === "offerings" && (
+          <OfferingsSection
+            key={offeringContext?.key ?? 0}
+            initialCourse={offeringContext?.course}
+            startCreating={offeringContext?.creating}
+          />
+        )}
         {section === "blocks" && <CourseBlocksManagement />}
         {section === "programs" && <ProgramsSection />}
         {section === "plans" && <CurriculumPlansManagement />}
