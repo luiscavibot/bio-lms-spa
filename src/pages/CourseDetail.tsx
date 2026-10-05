@@ -574,14 +574,12 @@ export function CourseDetail() {
   );
   const canManage = selectedBlock?.canManage === true;
 
-  // Next to the block name: its teacher, or else its type unless the name already says it
-  // (imported blocks are named «Teoría»).
+  // The block type is shown only when the name does not already say it (imported blocks are
+  // named «Teoría»).
   const selectedBlockType = selectedBlock?.blockType === "THEORY" ? "Teoría" : "Práctica";
-  const selectedBlockDetail = selectedBlock?.teacherName
-    ? `Responsable: ${selectedBlock.teacherName}`
-    : selectedBlock && selectedBlock.name.trim().toLowerCase() !== selectedBlockType.toLowerCase()
-      ? selectedBlockType
-      : "";
+  const showBlockType =
+    !!selectedBlock &&
+    selectedBlock.name.trim().toLowerCase() !== selectedBlockType.toLowerCase();
 
   return (
     <section>
@@ -616,26 +614,44 @@ export function CourseDetail() {
             <p className="repo-course-description">{offering.description}</p>
           )}
         </div>
-        <label className="repo-select-field repo-block-select">
-          <span>Bloque</span>
-          <select
-            value={blockId}
-            onChange={(event) => setBlockId(event.target.value)}
-          >
-            {offering.blocks.map((block) => (
-              <option key={block.blockId} value={block.blockId}>
-                {block.name}
-                {block.teacherName ? ` — ${block.teacherName}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        {offering.blocks.length > 1 && (
+          <label className="repo-select-field repo-block-select">
+            <span>Bloque</span>
+            <select
+              value={blockId}
+              onChange={(event) => setBlockId(event.target.value)}
+            >
+              {offering.blocks.map((block) => (
+                <option key={block.blockId} value={block.blockId}>
+                  {block.name}
+                  {block.teacherName ? ` — ${block.teacherName}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {selectedBlock && (
         <div className="repo-block-access-note">
-          <strong>{selectedBlock.name}</strong>
-          {selectedBlockDetail && <span>{selectedBlockDetail}</span>}
+          <div className="repo-block-fact">
+            <span>Bloque</span>
+            <strong>{selectedBlock.name}</strong>
+          </div>
+          {showBlockType && (
+            <div className="repo-block-fact">
+              <span>Tipo</span>
+              <strong>{selectedBlockType}</strong>
+            </div>
+          )}
+          <div className="repo-block-fact">
+            <span>Responsable</span>
+            {selectedBlock.teacherName ? (
+              <strong>{selectedBlock.teacherName}</strong>
+            ) : (
+              <strong className="repo-block-fact__empty">Por asignar</strong>
+            )}
+          </div>
           {selectedBlock.hasSyllabus && (
             <button
               type="button"

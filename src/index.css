@@ -612,6 +612,15 @@
   .repo-block-access-note strong {
     @apply text-slate-900;
   }
+  .repo-block-fact {
+    @apply flex flex-col gap-0.5 border-r border-slate-200 pr-4 last:border-r-0;
+  }
+  .repo-block-fact > span {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .repo-block-fact__empty {
+    @apply font-normal italic text-slate-500;
+  }
   .repo-toggle-field {
     @apply flex items-center gap-3 text-sm font-medium text-slate-800;
   }
