@@ -39,11 +39,8 @@ export function Courses() {
       .then(([programData, planData, semesterData]) => {
         setPrograms(programData.programs.filter((program) => program.isActive));
         setPlans(planData.plans);
+        // Every filter starts on «Todos»: the repository is browsed across all semesters.
         setSemesters(semesterData.semesters);
-        const activeSemester = semesterData.semesters.find(
-          (semester) => semester.isActive,
-        );
-        if (activeSemester) setSemesterId(String(activeSemester.semesterId));
       })
       .catch((reason: Error) => setError(reason.message));
   }, []);
