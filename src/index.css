@@ -688,6 +688,18 @@
   .repo-course-card__blocks {
     @apply text-xs text-slate-500;
   }
+  .repo-program-checks {
+    @apply flex flex-col gap-2 border-0 p-0;
+  }
+  .repo-program-checks legend {
+    @apply text-sm font-medium text-slate-800;
+  }
+  .repo-program-checks > div {
+    @apply grid gap-1 sm:grid-cols-2;
+  }
+  .repo-program-checks label {
+    @apply flex items-center gap-2 text-sm text-slate-700;
+  }
   .repo-chip-list {
     @apply flex flex-wrap gap-2;
   }

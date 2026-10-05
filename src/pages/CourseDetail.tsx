@@ -601,7 +601,11 @@ export function CourseDetail() {
                 ? `Publicado por ${authorsLine(offering.authors)}`
                 : "Docente por asignar")}
           </p>
-          <p>{offering.programName}</p>
+          <p>
+            {offering.programs?.length
+              ? offering.programs.map((program) => program.programName).join(" · ")
+              : offering.programName}
+          </p>
           <p>Plan curricular {offering.planCode}</p>
           <p>{offering.semesterName}</p>
           <p>

@@ -14,6 +14,14 @@ export const BLOCK_TYPE_PLURAL: Record<BlockType, [string, string]> = {
 
 export const BLOCK_TYPES: BlockType[] = ["THEORY", "PRACTICE", "SEMINAR"];
 
+/** «Ciencias Biológicas y 2 programas más» for the programs of a course. */
+export function programsLine(programs: { programName: string }[], fallback = ""): string {
+  if (!programs.length) return fallback;
+  const [first, ...rest] = programs;
+  if (!rest.length) return first.programName;
+  return `${first.programName} y ${rest.length} ${rest.length === 1 ? "programa" : "programas"} más`;
+}
+
 /** «2 teorías · 6 prácticas · 1 seminario» for the blocks of an offering. */
 export function blockSummary(blocks: { blockType: BlockType }[]): string {
   return BLOCK_TYPES.map((type) => {

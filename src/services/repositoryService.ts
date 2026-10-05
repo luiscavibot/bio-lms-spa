@@ -38,6 +38,14 @@ export interface OfferingBlock {
   canManage: boolean;
 }
 
+/** Program of a course: the principal one first, then the additional ones (plan 5). */
+export interface CourseProgram {
+  programId: number;
+  programName: string;
+  academicLevel: AcademicLevel;
+  principal: boolean;
+}
+
 export interface Offering {
   offeringId: number;
   courseId: number;
@@ -47,6 +55,7 @@ export interface Offering {
   credits: number;
   programId: number;
   programName: string;
+  programs: CourseProgram[];
   planId: number;
   planCode: string;
   academicLevel: AcademicLevel;
@@ -91,6 +100,7 @@ export interface Course {
   credits: number;
   programId: number;
   programName: string;
+  programs: CourseProgram[];
   planId: number;
   planCode: string;
   academicLevel: AcademicLevel;
@@ -282,6 +292,7 @@ export const repositoryService = {
     description?: string;
     credits: number;
     programId: number;
+    additionalProgramIds?: number[];
     planId: number;
   }) {
     return httpClient.post<Course>(`${API}/courses`, data);
@@ -297,6 +308,7 @@ export const repositoryService = {
       description: string;
       credits: number;
       programId: number;
+      additionalProgramIds?: number[];
       planId: number;
     },
   ) {

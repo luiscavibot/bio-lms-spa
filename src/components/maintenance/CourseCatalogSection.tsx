@@ -26,6 +26,7 @@ const emptyForm = {
   credits: "3",
   academicLevel: "" as AcademicLevel | "",
   programId: "",
+  additionalProgramIds: [] as number[],
   planId: "",
 };
 
@@ -125,6 +126,7 @@ export function CourseCatalogSection({
         description: form.description.trim() || undefined,
         credits: Number(form.credits),
         programId: Number(form.programId),
+        additionalProgramIds: form.additionalProgramIds,
         planId: Number(form.planId),
       });
       setForm(emptyForm);
@@ -148,6 +150,7 @@ export function CourseCatalogSection({
       credits: String(course.credits),
       academicLevel: course.academicLevel,
       programId: String(course.programId),
+      additionalProgramIds: (course.programs ?? []).filter((item) => !item.principal).map((item) => item.programId),
       planId: String(course.planId),
     });
   };
@@ -173,6 +176,7 @@ export function CourseCatalogSection({
         description: editForm.description.trim(),
         credits: Number(editForm.credits),
         programId: Number(editForm.programId),
+        additionalProgramIds: editForm.additionalProgramIds,
         planId: Number(editForm.planId),
       });
       setEditing(null);
@@ -266,6 +270,31 @@ export function CourseCatalogSection({
           </select>
         </label>
       </div>
+      <fieldset className="repo-form-field repo-form-field--wide repo-program-checks">
+        <legend>Programas adicionales</legend>
+        <small>Solo si el mismo curso se dicta a la vez para otras escuelas o programas.</small>
+        <div>
+          {programs
+            .filter((program) => String(program.programId) !== values.programId)
+            .map((program) => (
+              <label key={program.programId}>
+                <input
+                  type="checkbox"
+                  checked={values.additionalProgramIds.includes(program.programId)}
+                  onChange={(event) =>
+                    update({
+                      ...values,
+                      additionalProgramIds: event.target.checked
+                        ? [...values.additionalProgramIds, program.programId]
+                        : values.additionalProgramIds.filter((id) => id !== program.programId),
+                    })
+                  }
+                />
+                {program.programName}
+              </label>
+            ))}
+        </div>
+      </fieldset>
       <label className="repo-form-field">
         <span>Plan curricular</span>
         <select
@@ -424,7 +453,12 @@ export function CourseCatalogSection({
                     {course.courseName}
                     <span className="repo-table-sub">{course.courseCode}</span>
                   </td>
-                  <td>{course.programName}</td>
+                  <td title={course.programs?.map((program) => program.programName).join(", ")}>
+                    {course.programName}
+                    {(course.programs?.length ?? 0) > 1 && (
+                      <span className="repo-table-sub">+{course.programs.length - 1} programas</span>
+                    )}
+                  </td>
                   <td>{course.planCode}</td>
                   <td>{course.credits}</td>
                   <td>

@@ -13,7 +13,7 @@ import {
   type Semester,
 } from "@/services/repositoryService";
 import { authorsLine } from "@/lib/authors";
-import { blockSummary } from "@/lib/blocks";
+import { blockSummary, programsLine } from "@/lib/blocks";
 
 /** Courses per page; the list is always paged on the server. */
 const PAGE_SIZE = 30;
@@ -229,7 +229,9 @@ export function Courses() {
                 </p>
               </div>
               <div className="repo-course-card__bottom">
-                <p>{offering.programName}</p>
+                <p title={offering.programs?.map((program) => program.programName).join(", ")}>
+                  {programsLine(offering.programs ?? [], offering.programName)}
+                </p>
                 <p>Plan {offering.planCode}</p>
                 <p>{offering.semesterName}</p>
                 {offering.blocks.length > 1 && (
