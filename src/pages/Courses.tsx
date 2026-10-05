@@ -34,19 +34,24 @@ export function Courses() {
   const planId = params.get("plan") ?? "";
   const page = Math.max(1, Number(params.get("pagina")) || 1);
 
-  const setFilter = (name: string) => (value: string) =>
-    setParams(
-      (current) => {
-        const next = new URLSearchParams(current);
-        if (value) next.set(name, value);
-        else next.delete(name);
-        next.delete("pagina");
-        return next;
-      },
-      { replace: true },
-    );
+  // One URL update per change: react-router resolves each functional update against the
+  // params of the last render, so two calls in a row would lose the first one.
+  const setFilter =
+    (name: string, alsoClear: string[] = []) =>
+    (value: string) =>
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (value) next.set(name, value);
+          else next.delete(name);
+          for (const other of [...alsoClear, "pagina"]) next.delete(other);
+          return next;
+        },
+        { replace: true },
+      );
   const setSearch = setFilter("q");
-  const setAcademicLevel = setFilter("nivel");
+  // A program belongs to one level, so changing the level clears the program.
+  const setAcademicLevel = setFilter("nivel", ["programa"]);
   const setProgramId = setFilter("programa");
   const setSemesterId = setFilter("semestre");
   const setPlanId = setFilter("plan");
@@ -127,10 +132,7 @@ export function Courses() {
           <span>Tipo de programa</span>
           <select
             value={academicLevel}
-            onChange={(event) => {
-              setAcademicLevel(event.target.value);
-              setProgramId("");
-            }}
+            onChange={(event) => setAcademicLevel(event.target.value)}
           >
             <option value="">Todos</option>
             <option value="UNDERGRADUATE">Pregrado</option>
