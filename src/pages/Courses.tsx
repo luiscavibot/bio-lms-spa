@@ -134,8 +134,8 @@ export function Courses() {
 
   return (
     <section>
-      <h1 className="repo-page-title">Cursos</h1>
-      <div className="repo-filters" aria-label="Filtros de cursos">
+      <h1 className="repo-page-title">Cursos dictados</h1>
+      <div className="repo-filters" aria-label="Filtros de cursos dictados">
         <p>Filtrar por:</p>
         <label className="repo-search-field">
           <span className="sr-only">Buscar</span>
@@ -202,11 +202,11 @@ export function Courses() {
       {loading ? (
         <div className="repo-page-state">
           <span className="repo-spinner" />
-          Cargando cursos…
+          Cargando cursos dictados…
         </div>
       ) : offerings.length === 0 ? (
         <div className="repo-empty">
-          No se encontraron cursos con los filtros seleccionados.
+          No se encontraron cursos dictados con los filtros seleccionados.
         </div>
       ) : (
         <div className="repo-course-grid">
@@ -249,7 +249,7 @@ export function Courses() {
           pageSize={PAGE_SIZE}
           total={total}
           onPageChange={goToPage}
-          label="cursos"
+          label="cursos dictados"
         />
       )}
     </section>

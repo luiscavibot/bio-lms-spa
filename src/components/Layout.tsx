@@ -44,7 +44,7 @@ export function Layout() {
           </NavLink>
           <nav className="repo-nav" aria-label="Navegación principal">
             <NavLink to="/" end className={linkClass}>
-              Cursos
+              Cursos dictados
             </NavLink>
             {isAdmin && (
               <NavLink to="/maintenance" className={linkClass}>
@@ -79,7 +79,7 @@ export function Layout() {
         {mobileOpen && (
           <nav className="repo-mobile-nav">
             <NavLink to="/" onClick={() => setMobileOpen(false)}>
-              Cursos
+              Cursos dictados
             </NavLink>
             {isAdmin && (
               <NavLink to="/maintenance" onClick={() => setMobileOpen(false)}>

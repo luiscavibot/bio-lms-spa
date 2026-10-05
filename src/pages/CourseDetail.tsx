@@ -584,7 +584,7 @@ export function CourseDetail() {
   return (
     <section>
       <div className="repo-breadcrumb">
-        <Link to={listSearch ? `/?${listSearch}` : "/"}>Cursos</Link>
+        <Link to={listSearch ? `/?${listSearch}` : "/"}>Cursos dictados</Link>
         <span>›</span>
         <span>{offering.courseName}</span>
       </div>
