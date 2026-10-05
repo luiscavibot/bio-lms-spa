@@ -598,6 +598,9 @@ export function CourseDetail() {
                 : "Posgrado"}
             </span>
           </div>
+          <span className="repo-course-code repo-course-code--heading">
+            {offering.courseCode}
+          </span>
           <p>
             {offering.teacherName ||
               (offering.authors?.length

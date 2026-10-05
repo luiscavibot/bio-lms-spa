@@ -219,6 +219,7 @@ export function Courses() {
                     : "Posgrado"}
                 </span>
                 <h2>{offering.courseName}</h2>
+                <span className="repo-course-code">{offering.courseCode}</span>
                 <p>
                   {offering.teacherName ||
                     (offering.authors?.length

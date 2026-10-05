@@ -205,6 +205,13 @@
   .repo-course-card__top p {
     @apply mt-3 text-sm text-slate-700;
   }
+  /* Course code under the title: present but quieter than the title. */
+  .repo-course-code {
+    @apply mt-1 block text-xs font-medium uppercase tracking-wider text-slate-500;
+  }
+  .repo-course-code--heading {
+    @apply -mt-2 mb-4 text-sm;
+  }
   .repo-pill {
     @apply absolute right-5 top-5 rounded-full border border-emerald-800 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900;
   }
