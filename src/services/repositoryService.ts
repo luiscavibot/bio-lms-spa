@@ -54,6 +54,22 @@ export interface Offering {
   blocks: OfferingBlock[];
 }
 
+// A type alias, not an interface, so it can be passed as query-string parameters.
+export type OfferingFilters = {
+  search?: string;
+  programId?: number;
+  planId?: number;
+  semesterId?: number;
+  academicLevel?: AcademicLevel;
+};
+
+export interface OfferingFacets {
+  academicLevels: AcademicLevel[];
+  programIds: number[];
+  semesterIds: number[];
+  planIds: number[];
+}
+
 export interface Program {
   programId: number;
   programName: string;
@@ -173,19 +189,15 @@ function queryString(filters: Record<string, string | number | undefined>) {
 }
 
 export const repositoryService = {
-  getOfferings(
-    filters: {
-      search?: string;
-      programId?: number;
-      planId?: number;
-      semesterId?: number;
-      academicLevel?: AcademicLevel;
-      page?: number;
-      limit?: number;
-    } = {},
-  ) {
+  getOfferings(filters: OfferingFilters & { page?: number; limit?: number } = {}) {
     return httpClient.get<{ offerings: Offering[]; total: number }>(
       `${API}/course-offerings${queryString(filters)}`,
+    );
+  },
+  /** Filter values that still yield courses; each list ignores its own filter. */
+  getOfferingFacets(filters: OfferingFilters = {}) {
+    return httpClient.get<OfferingFacets>(
+      `${API}/course-offerings/facets${queryString(filters)}`,
     );
   },
   getSyllabusAccess(blockId: number) {

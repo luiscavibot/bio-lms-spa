@@ -7,6 +7,8 @@ import {
   type AcademicLevel,
   type CurriculumPlan,
   type Offering,
+  type OfferingFacets,
+  type OfferingFilters,
   type Program,
   type Semester,
 } from "@/services/repositoryService";
@@ -22,6 +24,7 @@ export function Courses() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [facets, setFacets] = useState<OfferingFacets>();
   const [error, setError] = useState("");
 
   // Filters and page live in the URL, so coming back from a course keeps them. Every filter
@@ -82,18 +85,21 @@ export function Courses() {
   const loadCourses = useCallback(async () => {
     setLoading(true);
     setError("");
+    const filters: OfferingFilters = {
+      search: search.trim() || undefined,
+      programId: programId ? Number(programId) : undefined,
+      planId: planId ? Number(planId) : undefined,
+      semesterId: semesterId ? Number(semesterId) : undefined,
+      academicLevel: (academicLevel || undefined) as AcademicLevel | undefined,
+    };
     try {
-      const data = await repositoryService.getOfferings({
-        search: search.trim() || undefined,
-        programId: programId ? Number(programId) : undefined,
-        planId: planId ? Number(planId) : undefined,
-        semesterId: semesterId ? Number(semesterId) : undefined,
-        academicLevel: (academicLevel || undefined) as AcademicLevel | undefined,
-        page,
-        limit: PAGE_SIZE,
-      });
+      const [data, facetData] = await Promise.all([
+        repositoryService.getOfferings({ ...filters, page, limit: PAGE_SIZE }),
+        repositoryService.getOfferingFacets(filters),
+      ]);
       setOfferings(data.offerings);
       setTotal(data.total);
+      setFacets(facetData);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -110,9 +116,21 @@ export function Courses() {
     return () => window.clearTimeout(timeout);
   }, [loadCourses]);
 
+  // Each filter offers only values that still yield courses with the other filters; the
+  // selected value always stays, so a filter can be read and cleared.
+  const offered = (ids: number[] | undefined, id: number, selected: string) =>
+    !ids || ids.includes(id) || String(id) === selected;
   const visiblePrograms = programs.filter(
-    (program) => !academicLevel || program.academicLevel === academicLevel,
+    (program) =>
+      (!academicLevel || program.academicLevel === academicLevel) &&
+      offered(facets?.programIds, program.programId, programId),
   );
+  const visibleSemesters = semesters.filter((semester) =>
+    offered(facets?.semesterIds, semester.semesterId, semesterId),
+  );
+  const visiblePlans = plans.filter((plan) => offered(facets?.planIds, plan.planId, planId));
+  const levelOffered = (level: AcademicLevel) =>
+    !facets || facets.academicLevels.includes(level) || academicLevel === level;
 
   return (
     <section>
@@ -135,8 +153,8 @@ export function Courses() {
             onChange={(event) => setAcademicLevel(event.target.value)}
           >
             <option value="">Todos</option>
-            <option value="UNDERGRADUATE">Pregrado</option>
-            <option value="POSTGRADUATE">Posgrado</option>
+            {levelOffered("UNDERGRADUATE") && <option value="UNDERGRADUATE">Pregrado</option>}
+            {levelOffered("POSTGRADUATE") && <option value="POSTGRADUATE">Posgrado</option>}
           </select>
         </label>
         <label className="repo-select-field">
@@ -160,7 +178,7 @@ export function Courses() {
             onChange={(event) => setSemesterId(event.target.value)}
           >
             <option value="">Todos</option>
-            {semesters.map((semester) => (
+            {visibleSemesters.map((semester) => (
               <option key={semester.semesterId} value={semester.semesterId}>
                 {semester.semesterName}
               </option>
@@ -171,7 +189,7 @@ export function Courses() {
           <span>Plan curricular</span>
           <select value={planId} onChange={(event) => setPlanId(event.target.value)}>
             <option value="">Todos</option>
-            {plans.map((plan) => (
+            {visiblePlans.map((plan) => (
               <option key={plan.planId} value={plan.planId}>
                 {plan.planCode}
               </option>
