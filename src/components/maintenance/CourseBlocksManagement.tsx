@@ -1,12 +1,12 @@
 import { Plus, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { OfferingPicker } from "@/components/maintenance/OfferingPicker";
 import {
   repositoryService,
   type BlockConfigurationItem,
   type CourseBlockConfiguration,
   type Enrollment,
-  type Offering,
   type Teacher,
 } from "@/services/repositoryService";
 
@@ -17,7 +17,6 @@ interface BlockDraft {
 }
 
 export function CourseBlocksManagement() {
-  const [offerings, setOfferings] = useState<Offering[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courseOfferingId, setCourseOfferingId] = useState("");
   const [configuration, setConfiguration] =
@@ -35,15 +34,8 @@ export function CourseBlocksManagement() {
     setLoading(true);
     setError("");
     try {
-      const [offeringData, teacherData] = await Promise.all([
-        repositoryService.getOfferings(),
-        repositoryService.getTeachers(),
-      ]);
-      setOfferings(offeringData.offerings);
+      const teacherData = await repositoryService.getTeachers();
       setTeachers(teacherData.users);
-      setCourseOfferingId((current) =>
-        current || String(offeringData.offerings[0]?.offeringId || ""),
-      );
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -253,26 +245,18 @@ export function CourseBlocksManagement() {
 
       {error && <div className="repo-alert repo-alert--error">{error}</div>}
 
-      <label className="repo-select-field repo-course-config-select">
-        <span>Curso y semestre</span>
-        <select
-          value={courseOfferingId}
-          onChange={(event) => setCourseOfferingId(event.target.value)}
-        >
-          {offerings.map((offering) => (
-            <option key={offering.offeringId} value={offering.offeringId}>
-              {offering.courseName} ({offering.courseCode}) — {offering.semesterName}
-            </option>
-          ))}
-        </select>
-      </label>
+      <OfferingPicker
+        className="repo-course-config-select"
+        value={courseOfferingId}
+        onChange={setCourseOfferingId}
+      />
 
       {loading ? (
         <div className="repo-page-state">
           <span className="repo-spinner" /> Cargando configuración…
         </div>
       ) : !configuration ? (
-        <div className="repo-empty">No hay cursos para configurar.</div>
+        <div className="repo-empty">Elige un curso para configurar sus bloques.</div>
       ) : (
         <>
           <section className="repo-config-section">

@@ -367,8 +367,39 @@
   .repo-material-row__main > button {
     @apply text-left text-sm font-semibold hover:text-emerald-700 hover:underline;
   }
-  .repo-load-more {
-    @apply mx-auto mt-8 flex;
+  .repo-offering-picker {
+    @apply flex flex-col gap-2;
+  }
+  .repo-offering-picker > span {
+    @apply text-sm font-medium text-slate-800;
+  }
+  .repo-offering-picker__filters {
+    @apply grid gap-2 sm:grid-cols-[12rem_1fr];
+  }
+  .repo-offering-picker select,
+  .repo-offering-picker input {
+    @apply h-10 rounded border border-slate-300 bg-white px-3 text-sm;
+  }
+  .repo-offering-picker small {
+    @apply text-xs text-slate-500;
+  }
+  .repo-pagination {
+    @apply mt-8 flex flex-col items-center gap-3 text-sm text-slate-600;
+  }
+  .repo-pagination__pages {
+    @apply flex flex-wrap items-center justify-center gap-1;
+  }
+  .repo-pagination__pages button {
+    @apply inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .repo-pagination__pages button svg {
+    @apply h-4 w-4;
+  }
+  .repo-pagination__pages .repo-pagination__current {
+    @apply border-emerald-700 bg-emerald-700 text-white hover:text-white;
+  }
+  .repo-pagination__pages span {
+    @apply px-1 text-slate-400;
   }
   .repo-material-description {
     @apply mt-1 whitespace-pre-line text-sm text-slate-700;

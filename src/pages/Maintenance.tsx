@@ -15,6 +15,7 @@ import { EnrollmentsManagement } from "@/components/maintenance/EnrollmentsManag
 import { StudentsManagement } from "@/components/maintenance/StudentsManagement";
 import { CourseBlocksManagement } from "@/components/maintenance/CourseBlocksManagement";
 import { CurriculumPlansManagement } from "@/components/maintenance/CurriculumPlansManagement";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,9 @@ const maintenanceSections: { id: Section; label: string }[] = [
   { id: "enrollments", label: "Matrículas" },
 ];
 
+
+/** Rows per page in the maintenance course table. */
+const MAINTENANCE_PAGE_SIZE = 25;
 function generateTemporaryPassword() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -89,10 +93,21 @@ function CoursesSection() {
   const [plans, setPlans] = useState<CurriculumPlan[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [search, setSearch] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
+  const [search, setSearchValue] = useState("");
+  const [semesterFilter, setSemesterValue] = useState("");
+  const [levelFilter, setLevelValue] = useState("");
+  const [planFilter, setPlanValue] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  // Any filter change goes back to the first page.
+  const resetting = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setPage(1);
+  };
+  const setSearch = resetting(setSearchValue);
+  const setSemesterFilter = resetting(setSemesterValue);
+  const setLevelFilter = resetting(setLevelValue);
+  const setPlanFilter = resetting(setPlanValue);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -122,40 +137,45 @@ function CoursesSection() {
     endDate: "",
   });
 
+  // Catalogs for the filters and the create form are loaded once.
+  useEffect(() => {
+    Promise.all([
+      repositoryService.getPrograms(),
+      repositoryService.getCurriculumPlans(),
+      repositoryService.getSemesters(),
+      repositoryService.getTeachers(),
+    ])
+      .then(([programData, planData, semesterData, teacherData]) => {
+        setPrograms(programData.programs.filter((program) => program.isActive));
+        setPlans(planData.plans);
+        setSemesters(semesterData.semesters);
+        setTeachers(teacherData.users);
+        const active = semesterData.semesters.find((semester) => semester.isActive);
+        setForm((current) => ({
+          ...current,
+          semesterId: current.semesterId || (active ? String(active.semesterId) : ""),
+          startDate: current.startDate || (active?.startDate ?? "").slice(0, 10),
+          endDate: current.endDate || (active?.endDate ?? "").slice(0, 10),
+        }));
+      })
+      .catch((reason: Error) => setError(reason.message));
+  }, []);
+
+  // Only the visible page of offerings is requested; the server applies the filters.
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [offeringData, programData, planData, semesterData, teacherData] =
-        await Promise.all([
-          repositoryService.getOfferings(),
-          repositoryService.getPrograms(),
-          repositoryService.getCurriculumPlans(),
-          repositoryService.getSemesters(),
-          repositoryService.getTeachers(),
-        ]);
-      setOfferings(offeringData.offerings);
-      setPrograms(programData.programs.filter((program) => program.isActive));
-      setPlans(planData.plans);
-      setSemesters(semesterData.semesters);
-      setTeachers(teacherData.users);
-      const active = semesterData.semesters.find(
-        (semester) => semester.isActive,
-      );
-      const latestOffering = [...offeringData.offerings].sort(
-        (first, second) => second.offeringId - first.offeringId,
-      )[0];
-      const suggestedStartDate = latestOffering?.startDate || active?.startDate || "";
-      const suggestedEndDate = latestOffering?.endDate || active?.endDate || "";
-      setForm((current) => ({
-        ...current,
-        semesterId: current.semesterId || (active ? String(active.semesterId) : ""),
-        startDate: current.startDate || suggestedStartDate.slice(0, 10),
-        endDate: current.endDate || suggestedEndDate.slice(0, 10),
-      }));
-      if (active) {
-        setSemesterFilter((current) => current || String(active.semesterId));
-      }
+      const data = await repositoryService.getOfferings({
+        search: search.trim() || undefined,
+        semesterId: semesterFilter ? Number(semesterFilter) : undefined,
+        academicLevel: (levelFilter || undefined) as AcademicLevel | undefined,
+        planId: planFilter ? Number(planFilter) : undefined,
+        page,
+        limit: MAINTENANCE_PAGE_SIZE,
+      });
+      setOfferings(data.offerings);
+      setTotal(data.total);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -165,27 +185,12 @@ function CoursesSection() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, semesterFilter, levelFilter, planFilter, page]);
 
   useEffect(() => {
-    void load();
+    const timeout = window.setTimeout(() => void load(), 250);
+    return () => window.clearTimeout(timeout);
   }, [load]);
-
-  const filtered = useMemo(
-    () =>
-      offerings.filter((offering) => {
-        const matchesSearch =
-          !search.trim() ||
-          offering.courseName.toLowerCase().includes(search.toLowerCase());
-        return (
-          matchesSearch &&
-          (!semesterFilter || offering.semesterId === Number(semesterFilter)) &&
-          (!levelFilter || offering.academicLevel === levelFilter) &&
-          (!planFilter || offering.planId === Number(planFilter))
-        );
-      }),
-    [offerings, search, semesterFilter, levelFilter, planFilter],
-  );
 
   const save = async () => {
     if (
@@ -584,8 +589,8 @@ function CoursesSection() {
               <tr>
                 <td colSpan={7}>Cargando…</td>
               </tr>
-            ) : filtered.length ? (
-              filtered.map((offering) => (
+            ) : offerings.length ? (
+              offerings.map((offering) => (
                 <tr key={offering.offeringId}>
                   <td>{offering.courseName}</td>
                   <td>{offering.programName}</td>
@@ -628,6 +633,13 @@ function CoursesSection() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={page}
+        pageSize={MAINTENANCE_PAGE_SIZE}
+        total={total}
+        onPageChange={setPage}
+        label="cursos"
+      />
       <Dialog
         open={!!editingCourse}
         onOpenChange={(open) => !open && setEditingCourse(null)}

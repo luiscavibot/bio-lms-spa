@@ -1,6 +1,6 @@
 import { FileText, FileUp, LockKeyhole, Pencil, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +66,13 @@ function formatDate(value: string) {
   })
     .format(new Date(value))
     .replace(".", "");
+}
+
+/** An offering is current while its status is not closed and today falls within its dates. */
+function isCurrentOffering(offering: Offering) {
+  if (offering.status === "COMPLETED" || offering.status === "CANCELLED") return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return offering.startDate.slice(0, 10) <= today && today <= offering.endDate.slice(0, 10);
 }
 
 function formatWeekDate(value: string) {
@@ -456,6 +463,8 @@ function EditWeekDialog({
 
 export function CourseDetail() {
   const { offeringId } = useParams<{ offeringId: string }>();
+  // Back to the same page and filters of the course list.
+  const listSearch = (useLocation().state as { from?: string } | null)?.from;
   const [offering, setOffering] = useState<Offering>();
   const [blockId, setBlockId] = useState("");
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -568,7 +577,7 @@ export function CourseDetail() {
   return (
     <section>
       <div className="repo-breadcrumb">
-        <Link to="/">Cursos</Link>
+        <Link to={listSearch ? `/?${listSearch}` : "/"}>Cursos</Link>
         <span>›</span>
         <span>{offering.courseName}</span>
       </div>
@@ -651,7 +660,11 @@ export function CourseDetail() {
           {[...weeks]
             .sort((a, b) => a.weekNumber - b.weekNumber)
             .map((week, index) => (
-              <details className="repo-week" key={week.id} open={index === 0}>
+              <details
+                className="repo-week"
+                key={week.id}
+                open={index === 0 && !!offering && isCurrentOffering(offering)}
+              >
                 <summary>
                   <span>
                     Semana {week.weekNumber}

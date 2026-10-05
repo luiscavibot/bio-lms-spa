@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Pagination } from "@/components/ui/pagination";
 import {
   repositoryService,
   type AcademicLevel,
@@ -11,24 +12,53 @@ import {
 } from "@/services/repositoryService";
 import { authorsLine } from "@/lib/authors";
 
-/** With every semester selected the list is paged; one semester loads at once. */
-const PAGE_SIZE = 60;
+/** Courses per page; the list is always paged on the server. */
+const PAGE_SIZE = 30;
 
 export function Courses() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [plans, setPlans] = useState<CurriculumPlan[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [search, setSearch] = useState("");
-  const [programId, setProgramId] = useState("");
-  const [planId, setPlanId] = useState("");
-  const [semesterId, setSemesterId] = useState("");
-  const [academicLevel, setAcademicLevel] = useState("");
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
+
+  // Filters and page live in the URL, so coming back from a course keeps them. Every filter
+  // starts on «Todos»: the repository is browsed across all semesters.
+  const [params, setParams] = useSearchParams();
+  const search = params.get("q") ?? "";
+  const academicLevel = params.get("nivel") ?? "";
+  const programId = params.get("programa") ?? "";
+  const semesterId = params.get("semestre") ?? "";
+  const planId = params.get("plan") ?? "";
+  const page = Math.max(1, Number(params.get("pagina")) || 1);
+
+  const setFilter = (name: string) => (value: string) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set(name, value);
+        else next.delete(name);
+        next.delete("pagina");
+        return next;
+      },
+      { replace: true },
+    );
+  const setSearch = setFilter("q");
+  const setAcademicLevel = setFilter("nivel");
+  const setProgramId = setFilter("programa");
+  const setSemesterId = setFilter("semestre");
+  const setPlanId = setFilter("plan");
+  const goToPage = (value: number) => {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value > 1) next.set("pagina", String(value));
+      else next.delete("pagina");
+      return next;
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     Promise.all([
@@ -39,49 +69,26 @@ export function Courses() {
       .then(([programData, planData, semesterData]) => {
         setPrograms(programData.programs.filter((program) => program.isActive));
         setPlans(planData.plans);
-        // Every filter starts on «Todos»: the repository is browsed across all semesters.
         setSemesters(semesterData.semesters);
       })
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
-  const fetchPage = useCallback(
-    (pageNumber: number) =>
-      repositoryService.getOfferings({
-        search: search.trim() || undefined,
-        programId: programId ? Number(programId) : undefined,
-        planId: planId ? Number(planId) : undefined,
-        semesterId: semesterId ? Number(semesterId) : undefined,
-        academicLevel: (academicLevel || undefined) as
-          AcademicLevel | undefined,
-        ...(semesterId ? {} : { page: pageNumber, limit: PAGE_SIZE }),
-      }),
-    [search, programId, planId, semesterId, academicLevel],
-  );
-
-  const loadMore = async () => {
-    setLoadingMore(true);
-    try {
-      const data = await fetchPage(page + 1);
-      setOfferings((current) => [...current, ...data.offerings]);
-      setPage(page + 1);
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "No se pudieron cargar más cursos",
-      );
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
   const loadCourses = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchPage(1);
+      const data = await repositoryService.getOfferings({
+        search: search.trim() || undefined,
+        programId: programId ? Number(programId) : undefined,
+        planId: planId ? Number(planId) : undefined,
+        semesterId: semesterId ? Number(semesterId) : undefined,
+        academicLevel: (academicLevel || undefined) as AcademicLevel | undefined,
+        page,
+        limit: PAGE_SIZE,
+      });
       setOfferings(data.offerings);
       setTotal(data.total);
-      setPage(1);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -91,7 +98,7 @@ export function Courses() {
     } finally {
       setLoading(false);
     }
-  }, [fetchPage]);
+  }, [search, programId, planId, semesterId, academicLevel, page]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadCourses(), 250);
@@ -205,6 +212,7 @@ export function Courses() {
                 <p>{offering.semesterName}</p>
                 <Link
                   to={`/courses/${offering.offeringId}`}
+                  state={{ from: params.toString() }}
                   className="repo-primary-action"
                 >
                   Ver materiales
@@ -214,17 +222,14 @@ export function Courses() {
           ))}
         </div>
       )}
-      {!loading && !semesterId && offerings.length < total && (
-        <button
-          type="button"
-          className="repo-outline-button repo-load-more"
-          onClick={() => void loadMore()}
-          disabled={loadingMore}
-        >
-          {loadingMore
-            ? "Cargando…"
-            : `Cargar más cursos (${offerings.length} de ${total})`}
-        </button>
+      {!loading && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onPageChange={goToPage}
+          label="cursos"
+        />
       )}
     </section>
   );
