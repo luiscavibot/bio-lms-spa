@@ -224,7 +224,7 @@ export function Courses() {
                 <p>
                   {offering.teacherName ||
                     (offering.authors?.length
-                      ? `Publicado por ${authorsLine(offering.authors)}`
+                      ? `Publicado por ${authorsLine(offering.authors, 3)}`
                       : "Docente por asignar")}
                 </p>
               </div>
