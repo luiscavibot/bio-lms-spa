@@ -673,18 +673,6 @@
   .repo-block-tabs button span {
     @apply rounded-full bg-slate-100 px-2 text-xs text-slate-600;
   }
-  .repo-block-chips {
-    @apply flex flex-wrap items-center gap-2;
-  }
-  .repo-block-chips__label {
-    @apply mr-1 w-full text-xs font-semibold uppercase tracking-wide text-slate-500 sm:w-auto;
-  }
-  .repo-block-chips button {
-    @apply rounded-full border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:border-emerald-700 hover:text-emerald-900;
-  }
-  .repo-block-chips button.active {
-    @apply border-emerald-700 bg-emerald-50 font-medium text-emerald-900;
-  }
   .repo-course-card__blocks {
     @apply text-xs text-slate-500;
   }
