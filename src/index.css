@@ -659,10 +659,22 @@
     @apply h-3.5 w-3.5;
   }
   .repo-block-nav {
-    @apply mb-4 flex flex-col gap-3;
+    @apply mb-4 flex flex-col gap-3 border-b border-slate-200 sm:flex-row sm:items-end sm:justify-between;
   }
   .repo-block-tabs {
-    @apply flex flex-wrap gap-1 border-b border-slate-200;
+    @apply flex flex-wrap gap-1;
+  }
+  .repo-block-nav__type {
+    @apply pb-2 text-sm font-medium text-slate-700;
+  }
+  .repo-block-picker {
+    @apply relative mb-2 w-full sm:ml-auto sm:w-80;
+  }
+  .repo-block-picker select {
+    @apply h-10 w-full cursor-pointer appearance-none truncate rounded-lg border border-slate-300 bg-white pl-3 pr-10 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100;
+  }
+  .repo-block-picker svg {
+    @apply pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500;
   }
   .repo-block-tabs button {
     @apply -mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900;

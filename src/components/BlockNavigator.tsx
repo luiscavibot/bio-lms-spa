@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 import { BLOCK_TYPE_LABEL, BLOCK_TYPES } from "@/lib/blocks";
 import type { OfferingBlock } from "@/services/repositoryService";
@@ -30,7 +31,7 @@ export function BlockNavigator({
   const withSections = sections.some(([section]) => section);
   return (
     <nav className="repo-block-nav" aria-label="Bloques del curso">
-      {types.length > 1 && (
+      {types.length > 1 ? (
         <div className="repo-block-tabs" role="tablist">
           {types.map((type) => {
             const count = blocks.filter((block) => block.blockType === type).length;
@@ -48,11 +49,16 @@ export function BlockNavigator({
             );
           })}
         </div>
+      ) : (
+        <span className="repo-block-nav__type">{BLOCK_TYPE_LABEL[selected.blockType]}</span>
       )}
       {sections.reduce((total, [, items]) => total + items.length, 0) > 1 && (
-        <label className="repo-select-field repo-block-select">
-          <span>{BLOCK_TYPE_LABEL[selected.blockType]}</span>
-          <select value={selected.blockId} onChange={(event) => onSelect(Number(event.target.value))}>
+        <div className="repo-block-picker">
+          <select
+            aria-label={`Bloque de ${BLOCK_TYPE_LABEL[selected.blockType].toLowerCase()}`}
+            value={selected.blockId}
+            onChange={(event) => onSelect(Number(event.target.value))}
+          >
             {sections.map(([section, items]) =>
               withSections ? (
                 <optgroup key={section || "sin-seccion"} label={section ? `Sección ${section}` : "Sin sección"}>
@@ -71,7 +77,8 @@ export function BlockNavigator({
               ),
             )}
           </select>
-        </label>
+          <ChevronDown aria-hidden="true" />
+        </div>
       )}
     </nav>
   );
