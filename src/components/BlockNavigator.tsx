@@ -3,8 +3,8 @@ import { BLOCK_TYPE_LABEL, BLOCK_TYPES } from "@/lib/blocks";
 import type { OfferingBlock } from "@/services/repositoryService";
 
 /**
- * Chooses a block of an offering: one tab per type present (with how many blocks it has) and,
- * inside, the blocks grouped by section. Hidden when the offering has a single block.
+ * Chooses a block of an offering: one tab per type present (with how many blocks it has) and a
+ * list of that type's blocks, grouped by section. Hidden when the offering has a single block.
  */
 export function BlockNavigator({
   blocks,
@@ -49,24 +49,29 @@ export function BlockNavigator({
           })}
         </div>
       )}
-      {sections.map(([section, items]) =>
-        items.length > 1 || withSections ? (
-          <div className="repo-block-chips" key={section || "sin-seccion"}>
-            {withSections && <span className="repo-block-chips__label">{section ? `Sección ${section}` : "Sin sección"}</span>}
-            {items.map((block) => (
-              <button
-                key={block.blockId}
-                type="button"
-                className={block.blockId === selected.blockId ? "active" : ""}
-                aria-pressed={block.blockId === selected.blockId}
-                onClick={() => onSelect(block.blockId)}
-                title={block.displayName}
-              >
-                {block.name || BLOCK_TYPE_LABEL[block.blockType]}
-              </button>
-            ))}
-          </div>
-        ) : null,
+      {sections.reduce((total, [, items]) => total + items.length, 0) > 1 && (
+        <label className="repo-select-field repo-block-select">
+          <span>{BLOCK_TYPE_LABEL[selected.blockType]}</span>
+          <select value={selected.blockId} onChange={(event) => onSelect(Number(event.target.value))}>
+            {sections.map(([section, items]) =>
+              withSections ? (
+                <optgroup key={section || "sin-seccion"} label={section ? `Sección ${section}` : "Sin sección"}>
+                  {items.map((block) => (
+                    <option key={block.blockId} value={block.blockId}>
+                      {block.displayName}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : (
+                items.map((block) => (
+                  <option key={block.blockId} value={block.blockId}>
+                    {block.displayName}
+                  </option>
+                ))
+              ),
+            )}
+          </select>
+        </label>
       )}
     </nav>
   );
