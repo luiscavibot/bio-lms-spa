@@ -1,11 +1,28 @@
-import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BLOCK_TYPE_LABEL, BLOCK_TYPES } from "@/lib/blocks";
 import type { OfferingBlock } from "@/services/repositoryService";
 
+// Utility classes, so they replace the Select defaults instead of losing to them.
+const TRIGGER =
+  "h-10 w-full self-end rounded-lg border-slate-300 bg-white px-3 text-left font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100 focus:ring-offset-0 sm:w-80 [&>svg]:text-slate-500 [&>svg]:opacity-100";
+const LIST = "max-h-80 rounded-lg border-slate-200 bg-white p-1 text-slate-800 shadow-lg";
+const GROUP_LABEL = "px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+const OPTION =
+  "cursor-pointer rounded-md py-2 pl-8 pr-3 text-slate-700 focus:bg-emerald-50 focus:text-emerald-900 data-[state=checked]:font-semibold data-[state=checked]:text-emerald-900 [&_svg]:text-emerald-700";
+
 /**
- * Chooses a block of an offering: one tab per type present (with how many blocks it has) and a
- * list of that type's blocks, grouped by section. Hidden when the offering has a single block.
+ * Chooses a block of an offering: one tab per type present (with how many blocks it has) and,
+ * below, a list of that type's blocks grouped by section. Hidden when the offering has a
+ * single block.
  */
 export function BlockNavigator({
   blocks,
@@ -29,9 +46,15 @@ export function BlockNavigator({
 
   if (blocks.length <= 1 || !selected) return null;
   const withSections = sections.some(([section]) => section);
+  const sameType = sections.reduce((total, [, items]) => total + items.length, 0);
+  const option = (block: OfferingBlock) => (
+    <SelectItem key={block.blockId} value={String(block.blockId)} className={OPTION}>
+      {block.displayName}
+    </SelectItem>
+  );
   return (
     <nav className="repo-block-nav" aria-label="Bloques del curso">
-      {types.length > 1 ? (
+      {types.length > 1 && (
         <div className="repo-block-tabs" role="tablist">
           {types.map((type) => {
             const count = blocks.filter((block) => block.blockType === type).length;
@@ -49,36 +72,28 @@ export function BlockNavigator({
             );
           })}
         </div>
-      ) : (
-        <span className="repo-block-nav__type">{BLOCK_TYPE_LABEL[selected.blockType]}</span>
       )}
-      {sections.reduce((total, [, items]) => total + items.length, 0) > 1 && (
-        <div className="repo-block-picker">
-          <select
+      {sameType > 1 && (
+        <Select value={String(selected.blockId)} onValueChange={(value) => onSelect(Number(value))}>
+          <SelectTrigger
+            className={TRIGGER}
             aria-label={`Bloque de ${BLOCK_TYPE_LABEL[selected.blockType].toLowerCase()}`}
-            value={selected.blockId}
-            onChange={(event) => onSelect(Number(event.target.value))}
           >
-            {sections.map(([section, items]) =>
-              withSections ? (
-                <optgroup key={section || "sin-seccion"} label={section ? `Sección ${section}` : "Sin sección"}>
-                  {items.map((block) => (
-                    <option key={block.blockId} value={block.blockId}>
-                      {block.displayName}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                items.map((block) => (
-                  <option key={block.blockId} value={block.blockId}>
-                    {block.displayName}
-                  </option>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className={LIST} align="end">
+            {withSections
+              ? sections.map(([section, items]) => (
+                  <SelectGroup key={section || "sin-seccion"}>
+                    <SelectLabel className={GROUP_LABEL}>
+                      {section ? `Sección ${section}` : "Sin sección"}
+                    </SelectLabel>
+                    {items.map(option)}
+                  </SelectGroup>
                 ))
-              ),
-            )}
-          </select>
-          <ChevronDown aria-hidden="true" />
-        </div>
+              : sections.flatMap(([, items]) => items.map(option))}
+          </SelectContent>
+        </Select>
       )}
     </nav>
   );
