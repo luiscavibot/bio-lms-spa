@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -15,13 +13,12 @@ import type { OfferingBlock } from "@/services/repositoryService";
 const TRIGGER =
   "h-10 w-full self-end rounded-lg border-slate-300 bg-white px-3 text-left font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100 focus:ring-offset-0 sm:w-80 [&>svg]:text-slate-500 [&>svg]:opacity-100";
 const LIST = "max-h-80 rounded-lg border-slate-200 bg-white p-1 text-slate-800 shadow-lg";
-const GROUP_LABEL = "px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const OPTION =
   "cursor-pointer rounded-md py-2 pl-8 pr-3 text-slate-700 focus:bg-emerald-50 focus:text-emerald-900 data-[state=checked]:font-semibold data-[state=checked]:text-emerald-900 [&_svg]:text-emerald-700";
 
 /**
  * Chooses a block of an offering: one tab per type present (with how many blocks it has) and,
- * below, a list of that type's blocks grouped by section. Hidden when the offering has a
+ * below, a list of that type's blocks by their full name. Hidden when the offering has a
  * single block.
  */
 export function BlockNavigator({
@@ -35,18 +32,13 @@ export function BlockNavigator({
 }) {
   const selected = blocks.find((block) => block.blockId === selectedId) ?? blocks[0];
   const types = BLOCK_TYPES.filter((type) => blocks.some((block) => block.blockType === type));
-  const sections = useMemo(() => {
-    const groups = new Map<string, OfferingBlock[]>();
-    for (const block of blocks.filter((item) => item.blockType === selected?.blockType)) {
-      const key = block.section ?? "";
-      groups.set(key, [...(groups.get(key) ?? []), block]);
-    }
-    return [...groups.entries()];
-  }, [blocks, selected?.blockType]);
+  // Blocks of the selected type, in the server's order (section, then group).
+  const sameType = useMemo(
+    () => blocks.filter((block) => block.blockType === selected?.blockType),
+    [blocks, selected?.blockType],
+  );
 
   if (blocks.length <= 1 || !selected) return null;
-  const withSections = sections.some(([section]) => section);
-  const sameType = sections.reduce((total, [, items]) => total + items.length, 0);
   const option = (block: OfferingBlock) => (
     <SelectItem key={block.blockId} value={String(block.blockId)} className={OPTION}>
       {block.displayName}
@@ -73,7 +65,7 @@ export function BlockNavigator({
           })}
         </div>
       )}
-      {sameType > 1 && (
+      {sameType.length > 1 && (
         <Select value={String(selected.blockId)} onValueChange={(value) => onSelect(Number(value))}>
           <SelectTrigger
             className={TRIGGER}
@@ -82,16 +74,7 @@ export function BlockNavigator({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={LIST} align="end">
-            {withSections
-              ? sections.map(([section, items]) => (
-                  <SelectGroup key={section || "sin-seccion"}>
-                    <SelectLabel className={GROUP_LABEL}>
-                      {section ? `Sección ${section}` : "Sin sección"}
-                    </SelectLabel>
-                    {items.map(option)}
-                  </SelectGroup>
-                ))
-              : sections.flatMap(([, items]) => items.map(option))}
+            {sameType.map(option)}
           </SelectContent>
         </Select>
       )}
