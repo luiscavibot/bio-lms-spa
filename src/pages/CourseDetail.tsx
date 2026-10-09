@@ -1,6 +1,6 @@
-import { FileUp, Pencil, Plus, Trash2, UploadCloud } from "lucide-react";
+import { FileText, FileUp, LockKeyhole, Pencil, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -8,20 +8,55 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useUserRole } from "@/hooks/usePermissions";
 import {
   repositoryService,
   type Material,
   type MaterialCategory,
+  type LinkMaterialSubtype,
   type Offering,
+  type UploadableMaterialCategory,
   type Week,
 } from "@/services/repositoryService";
+import { authorsLine } from "@/lib/authors";
+import { BlockNavigator } from "@/components/BlockNavigator";
 
 const materialLabels: Record<MaterialCategory, string> = {
   EXTERNAL_LINK: "Enlace externo",
-  PRACTICE_FILE: "Archivo de prácticas",
-  CLASS_SLIDES: "Diapositivas de clase",
+  CLASS_SLIDES: "Material de teoría",
+  PRACTICE_FILE: "Material de práctica",
+  ASSIGNMENT_FILE: "Guía de tarea",
+  ANNOUNCEMENT_FILE: "Adjunto de anuncio",
+};
+
+/** Categories offered when a material is added by hand. */
+const creatableCategories: (UploadableMaterialCategory | "EXTERNAL_LINK")[] = [
+  "CLASS_SLIDES",
+  "PRACTICE_FILE",
+  "EXTERNAL_LINK",
+];
+
+function formatSize(bytes?: number) {
+  if (!bytes) return "";
+  const value = Number(bytes);
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(value / 1024))} KB`;
+}
+
+function materialAuthor(material: Material) {
+  const uploader = material.uploadedBy
+    ? `${material.uploadedBy.firstName} ${material.uploadedBy.lastName}`.trim()
+    : "";
+  if (uploader) return `Subido por ${uploader}`;
+  if (material.authorName) return `Publicado por ${material.authorName}`;
+  return "Subido por Repositorio";
+}
+
+
+const linkSubtypeLabels: Record<LinkMaterialSubtype, string> = {
+  VIDEO: "Video",
+  ARTICLE: "Artículo",
+  THESIS: "Tesis",
+  WEBSITE: "Sitio web",
 };
 
 function formatDate(value: string) {
@@ -31,6 +66,24 @@ function formatDate(value: string) {
     year: "numeric",
   })
     .format(new Date(value))
+    .replace(".", "");
+}
+
+/** An offering is current while its status is not closed and today falls within its dates. */
+function isCurrentOffering(offering: Offering) {
+  if (offering.status === "COMPLETED" || offering.status === "CANCELLED") return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return offering.startDate.slice(0, 10) <= today && today <= offering.endDate.slice(0, 10);
+}
+
+function formatWeekDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+    .format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
     .replace(".", "");
 }
 
@@ -45,9 +98,13 @@ function NewMaterialDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
-  const [category, setCategory] = useState<MaterialCategory | "">("");
+  const [category, setCategory] = useState<
+    UploadableMaterialCategory | "EXTERNAL_LINK" | ""
+  >("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
+  const [linkSubtype, setLinkSubtype] = useState<LinkMaterialSubtype | "">("");
   const [file, setFile] = useState<File>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +113,9 @@ function NewMaterialDialog({
     if (!open) {
       setCategory("");
       setTitle("");
+      setDescription("");
       setUrl("");
+      setLinkSubtype("");
       setFile(undefined);
       setError("");
     }
@@ -69,10 +128,13 @@ function NewMaterialDialog({
     try {
       if (category === "EXTERNAL_LINK") {
         if (!url.trim()) throw new Error("Ingresa la dirección del enlace");
+        if (!linkSubtype) throw new Error("Selecciona el tipo de enlace");
         await repositoryService.createLink({
           weekId,
           title: title.trim(),
           externalLinkUrl: url.trim(),
+          linkSubtype,
+          description: description.trim() || undefined,
         });
       } else {
         if (!file) throw new Error("Selecciona un archivo");
@@ -81,6 +143,7 @@ function NewMaterialDialog({
           title: title.trim(),
           materialCategory: category,
           file,
+          description: description.trim() || undefined,
         });
       }
       onOpenChange(false);
@@ -110,13 +173,15 @@ function NewMaterialDialog({
           <select
             value={category}
             onChange={(event) =>
-              setCategory(event.target.value as MaterialCategory)
+              setCategory(
+                event.target.value as UploadableMaterialCategory | "EXTERNAL_LINK",
+              )
             }
           >
             <option value="">Seleccionar</option>
-            {Object.entries(materialLabels).map(([value, label]) => (
+            {creatableCategories.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {materialLabels[value]}
               </option>
             ))}
           </select>
@@ -131,16 +196,45 @@ function NewMaterialDialog({
             />
           </label>
         )}
-        {category === "EXTERNAL_LINK" && (
+        {category && (
           <label className="repo-form-field">
-            <span>Dirección web</span>
-            <input
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://…"
+            <span>Descripción (opcional)</span>
+            <textarea
+              rows={3}
+              maxLength={5000}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
           </label>
+        )}
+        {category === "EXTERNAL_LINK" && (
+          <>
+            <label className="repo-form-field">
+              <span>Subetiqueta del enlace</span>
+              <select
+                value={linkSubtype}
+                onChange={(event) =>
+                  setLinkSubtype(event.target.value as LinkMaterialSubtype)
+                }
+              >
+                <option value="">Seleccionar</option>
+                {Object.entries(linkSubtypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="repo-form-field">
+              <span>Dirección web</span>
+              <input
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://…"
+              />
+            </label>
+          </>
         )}
         {category && category !== "EXTERNAL_LINK" && (
           <div>
@@ -170,7 +264,9 @@ function NewMaterialDialog({
             saving ||
             !category ||
             !title.trim() ||
-            (category === "EXTERNAL_LINK" ? !url.trim() : !file)
+            (category === "EXTERNAL_LINK"
+              ? !url.trim() || !linkSubtype
+              : !file)
           }
         >
           {saving ? "Subiendo…" : "Subir material"}
@@ -190,13 +286,17 @@ function EditMaterialDialog({
   onSaved: () => void;
 }) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
+  const [linkSubtype, setLinkSubtype] = useState<LinkMaterialSubtype>("WEBSITE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setTitle(material?.title || "");
+    setDescription(material?.description || "");
     setUrl(material?.externalLinkUrl || "");
+    setLinkSubtype(material?.linkSubtype || "WEBSITE");
     setError("");
   }, [material]);
 
@@ -206,8 +306,9 @@ function EditMaterialDialog({
     try {
       await repositoryService.updateMaterial(material.id, {
         title: title.trim(),
+        description: description.trim(),
         ...(material.materialType === "LINK"
-          ? { externalLinkUrl: url.trim() }
+          ? { externalLinkUrl: url.trim(), linkSubtype }
           : {}),
       });
       onOpenChange(false);
@@ -239,15 +340,41 @@ function EditMaterialDialog({
             onChange={(event) => setTitle(event.target.value)}
           />
         </label>
+        <label className="repo-form-field">
+          <span>Descripción</span>
+          <textarea
+            rows={3}
+            maxLength={5000}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </label>
         {material?.materialType === "LINK" && (
-          <label className="repo-form-field">
-            <span>Dirección web</span>
-            <input
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-            />
-          </label>
+          <>
+            <label className="repo-form-field">
+              <span>Subetiqueta del enlace</span>
+              <select
+                value={linkSubtype}
+                onChange={(event) =>
+                  setLinkSubtype(event.target.value as LinkMaterialSubtype)
+                }
+              >
+                {Object.entries(linkSubtypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="repo-form-field">
+              <span>Dirección web</span>
+              <input
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+              />
+            </label>
+          </>
         )}
         {error && <div className="repo-alert repo-alert--error">{error}</div>}
         <button
@@ -337,8 +464,8 @@ function EditWeekDialog({
 
 export function CourseDetail() {
   const { offeringId } = useParams<{ offeringId: string }>();
-  const role = useUserRole();
-  const canManage = role === "Admin" || role === "Teacher";
+  // Back to the same page and filters of the course list.
+  const listSearch = (useLocation().state as { from?: string } | null)?.from;
   const [offering, setOffering] = useState<Offering>();
   const [blockId, setBlockId] = useState("");
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -347,8 +474,6 @@ export function CourseDetail() {
   const [newMaterialWeekId, setNewMaterialWeekId] = useState<number>();
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [editingWeek, setEditingWeek] = useState<Week | null>(null);
-  const [deletingWeek, setDeletingWeek] = useState<Week | null>(null);
-  const [deletePending, setDeletePending] = useState(false);
 
   useEffect(() => {
     if (!offeringId) return;
@@ -380,39 +505,22 @@ export function CourseDetail() {
     void loadWeeks();
   }, [loadWeeks]);
 
-  const addWeek = async () => {
-    const nextWeek =
-      weeks.reduce((maximum, week) => Math.max(maximum, week.weekNumber), 0) +
-      1;
-    try {
-      await repositoryService.createWeek({
-        blockId: Number(blockId),
-        weekNumber: nextWeek,
-      });
-      await loadWeeks();
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "No se pudo crear la semana",
-      );
-    }
+  const openUrl = (url: string) => {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.click();
   };
 
-  const confirmDeleteWeek = async () => {
-    if (!deletingWeek) return;
-    setDeletePending(true);
-    setError("");
+  const openSyllabus = async (blockIdToOpen: number) => {
     try {
-      await repositoryService.deleteWeek(deletingWeek.id);
-      setDeletingWeek(null);
-      await loadWeeks();
+      const { url } = await repositoryService.getSyllabusAccess(blockIdToOpen);
+      openUrl(url);
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo eliminar la semana",
+        reason instanceof Error ? reason.message : "No se pudo abrir el sílabo",
       );
-    } finally {
-      setDeletePending(false);
     }
   };
 
@@ -462,10 +570,15 @@ export function CourseDetail() {
   if (!offering)
     return <div className="repo-empty">{error || "El curso no existe."}</div>;
 
+  const selectedBlock = offering.blocks.find(
+    (block) => block.blockId === Number(blockId),
+  );
+  const canManage = selectedBlock?.canManage === true;
+
   return (
     <section>
       <div className="repo-breadcrumb">
-        <Link to="/">Cursos</Link>
+        <Link to={listSearch ? `/?${listSearch}` : "/"}>Cursos dictados</Link>
         <span>›</span>
         <span>{offering.courseName}</span>
       </div>
@@ -479,51 +592,102 @@ export function CourseDetail() {
                 : "Posgrado"}
             </span>
           </div>
-          <p>{offering.teacherName || "Docente por asignar"}</p>
-          <p>{offering.programName}</p>
+          <span className="repo-course-code repo-course-code--heading">
+            {offering.courseCode}
+          </span>
+          <p>
+            {offering.teacherName ||
+              (offering.authors?.length
+                ? `Publicado por ${authorsLine(offering.authors)}`
+                : "Docente por asignar")}
+          </p>
+          <p>
+            {offering.programs?.length
+              ? offering.programs.map((program) => program.programName).join(" · ")
+              : offering.programName}
+          </p>
+          <p>Plan curricular {offering.planCode}</p>
           <p>{offering.semesterName}</p>
+          <p>
+            {formatWeekDate(offering.startDate)} – {formatWeekDate(offering.endDate)}
+          </p>
           {offering.description && (
             <p className="repo-course-description">{offering.description}</p>
           )}
         </div>
-        <label className="repo-select-field repo-block-select">
-          <span>Bloque</span>
-          <select
-            value={blockId}
-            onChange={(event) => setBlockId(event.target.value)}
-          >
-            {offering.blocks.map((block) => (
-              <option key={block.blockId} value={block.blockId}>
-                {block.name}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
+
+      <BlockNavigator
+        blocks={offering.blocks}
+        selectedId={selectedBlock?.blockId}
+        onSelect={(id) => setBlockId(String(id))}
+      />
+
+      {selectedBlock && (
+        <div className="repo-block-access-note">
+          <div className="repo-block-fact">
+            <span>Bloque</span>
+            <strong>{selectedBlock.displayName}</strong>
+          </div>
+          {selectedBlock.teachers.length > 0 ? (
+            <div className="repo-block-fact">
+              <span>{selectedBlock.teachers.length > 1 ? "Responsables" : "Responsable"}</span>
+              <strong>{selectedBlock.teachers.map((teacher) => teacher.name).join(", ")}</strong>
+            </div>
+          ) : (
+            selectedBlock.authors.length > 0 && (
+              <div className="repo-block-fact">
+                <span>Publicado por</span>
+                <strong>{authorsLine(selectedBlock.authors)}</strong>
+              </div>
+            )
+          )}
+          {selectedBlock.hasSyllabus && (
+            <button
+              type="button"
+              className="repo-table-action"
+              onClick={() => void openSyllabus(selectedBlock.blockId)}
+            >
+              <FileText /> Sílabo
+            </button>
+          )}
+          {canManage && <span className="repo-status repo-status--active">Puedes administrar</span>}
+        </div>
+      )}
 
       {error && <div className="repo-alert repo-alert--error">{error}</div>}
       <div className="repo-weeks-heading">
-        <h2>Semanas</h2>
-        {canManage && (
-          <button
-            type="button"
-            className="repo-outline-button"
-            onClick={addWeek}
-            disabled={!blockId}
-          >
-            <Plus /> Nueva semana
-          </button>
-        )}
+        <div>
+          <h2>Semanas</h2>
+          <p>Generadas automáticamente según las fechas del curso.</p>
+        </div>
       </div>
       {weeks.length === 0 ? (
         <div className="repo-empty">Aún no hay semanas en este bloque.</div>
       ) : (
         <div className="repo-week-list">
           {[...weeks]
-            .sort((a, b) => b.weekNumber - a.weekNumber)
+            .sort((a, b) => a.weekNumber - b.weekNumber)
             .map((week, index) => (
-              <details className="repo-week" key={week.id} open={index === 0}>
-                <summary>Semana {week.weekNumber}</summary>
+              <details
+                className="repo-week"
+                key={week.id}
+                open={index === 0 && !!offering && isCurrentOffering(offering)}
+              >
+                <summary>
+                  <span>
+                    Semana {week.weekNumber}
+                    <small>
+                      {formatWeekDate(week.weekStartDate)} –{" "}
+                      {formatWeekDate(week.weekEndDate)}
+                    </small>
+                  </span>
+                  {week.isLocked && (
+                    <span className="repo-week-lock">
+                      <LockKeyhole /> Bloqueada para docentes
+                    </span>
+                  )}
+                </summary>
                 <div className="repo-week__content">
                   <div className="repo-week-toolbar">
                     <p
@@ -535,7 +699,7 @@ export function CourseDetail() {
                     >
                       {week.topicSummary || "Sin resumen de la semana."}
                     </p>
-                    {canManage && (
+                    {week.canManage && (
                       <div className="repo-week-actions">
                         <button
                           type="button"
@@ -544,13 +708,6 @@ export function CourseDetail() {
                         >
                           <Pencil />
                           {week.topicSummary ? "Editar resumen" : "Añadir resumen"}
-                        </button>
-                        <button
-                          type="button"
-                          className="repo-table-action repo-table-action--danger"
-                          onClick={() => setDeletingWeek(week)}
-                        >
-                          <Trash2 /> Eliminar semana
                         </button>
                       </div>
                     )}
@@ -564,7 +721,9 @@ export function CourseDetail() {
                     <article className="repo-material-row" key={material.id}>
                       <div className="repo-material-row__main">
                         <p className="repo-material-kind">
-                          {materialLabels[material.materialCategory]}
+                          {material.materialType === "LINK" && material.linkSubtype
+                            ? linkSubtypeLabels[material.linkSubtype]
+                            : materialLabels[material.materialCategory]}
                         </p>
                         <button
                           type="button"
@@ -572,14 +731,20 @@ export function CourseDetail() {
                         >
                           {material.title}
                         </button>
+                        {material.description && (
+                          <p className="repo-material-description">
+                            {material.description}
+                          </p>
+                        )}
                         <p className="repo-material-meta">
-                          {formatDate(material.createdAt)} · Subido por{" "}
-                          {material.uploadedBy
-                            ? `${material.uploadedBy.firstName} ${material.uploadedBy.lastName}`.trim()
-                            : "Repositorio"}
+                          {formatDate(material.createdAt)} ·{" "}
+                          {materialAuthor(material)}
+                          {material.fileResource
+                            ? ` · ${material.fileResource.fileName} (${formatSize(material.fileResource.sizeBytes)})`
+                            : ""}
                         </p>
                       </div>
-                      {canManage && (
+                      {week.canManage && (
                         <div className="repo-material-actions">
                           <button
                             type="button"
@@ -599,7 +764,7 @@ export function CourseDetail() {
                       )}
                     </article>
                   ))}
-                  {canManage && (
+                  {week.canManage && (
                     <button
                       type="button"
                       className="repo-outline-button repo-add-material"
@@ -628,14 +793,6 @@ export function CourseDetail() {
         week={editingWeek}
         onOpenChange={(open) => !open && setEditingWeek(null)}
         onSaved={loadWeeks}
-      />
-      <ConfirmDialog
-        open={!!deletingWeek}
-        onOpenChange={(open) => !open && setDeletingWeek(null)}
-        title={`Eliminar semana ${deletingWeek?.weekNumber || ""}`}
-        description="Se eliminarán también todos los materiales de esta semana. Esta acción no se puede deshacer."
-        pending={deletePending}
-        onConfirm={confirmDeleteWeek}
       />
     </section>
   );

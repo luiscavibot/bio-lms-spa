@@ -13,6 +13,10 @@ import { Unauthorized } from "@/pages/Unauthorized";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EnrollmentsManagement } from "@/components/maintenance/EnrollmentsManagement";
 import { StudentsManagement } from "@/components/maintenance/StudentsManagement";
+import { CourseBlocksManagement } from "@/components/maintenance/CourseBlocksManagement";
+import { CurriculumPlansManagement } from "@/components/maintenance/CurriculumPlansManagement";
+import { CourseCatalogSection } from "@/components/maintenance/CourseCatalogSection";
+import { OfferingsSection } from "@/components/maintenance/OfferingsSection";
 import {
   Dialog,
   DialogContent,
@@ -23,16 +27,19 @@ import {
 import {
   repositoryService,
   type AcademicLevel,
-  type BlockType,
-  type Offering,
+  type Course,
   type Program,
   type Semester,
   type Teacher,
 } from "@/services/repositoryService";
+import { copyText } from "@/lib/copyText";
 
 type Section =
   | "courses"
+  | "offerings"
+  | "blocks"
   | "programs"
+  | "plans"
   | "semesters"
   | "teachers"
   | "students"
@@ -41,7 +48,10 @@ type View = "list" | "create";
 
 const maintenanceSections: { id: Section; label: string }[] = [
   { id: "courses", label: "Cursos" },
+  { id: "offerings", label: "Ofertas" },
+  { id: "blocks", label: "Bloques" },
   { id: "programs", label: "Programas" },
+  { id: "plans", label: "Planes" },
   { id: "semesters", label: "Semestres" },
   { id: "teachers", label: "Docentes" },
   { id: "students", label: "Alumnos" },
@@ -62,537 +72,6 @@ function InlineError({ message }: { message: string }) {
   return message ? (
     <div className="repo-alert repo-alert--error">{message}</div>
   ) : null;
-}
-
-function CoursesSection() {
-  const [view, setView] = useState<View>("list");
-  const [offerings, setOfferings] = useState<Offering[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [search, setSearch] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [editingCourse, setEditingCourse] = useState<Offering | null>(null);
-  const [deletingCourse, setDeletingCourse] = useState<Offering | null>(null);
-  const [deletePending, setDeletePending] = useState(false);
-  const [editForm, setEditForm] = useState({
-    courseName: "",
-    courseCode: "",
-    description: "",
-    credits: "3",
-    programId: "",
-  });
-  const [form, setForm] = useState({
-    courseName: "",
-    description: "",
-    teacherId: "",
-    academicLevel: "" as AcademicLevel | "",
-    programId: "",
-    semesterId: "",
-    blockTypes: [] as BlockType[],
-  });
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [offeringData, programData, semesterData, teacherData] =
-        await Promise.all([
-          repositoryService.getOfferings(),
-          repositoryService.getPrograms(),
-          repositoryService.getSemesters(),
-          repositoryService.getTeachers(),
-        ]);
-      setOfferings(offeringData.offerings);
-      setPrograms(programData.programs.filter((program) => program.isActive));
-      setSemesters(semesterData.semesters);
-      setTeachers(teacherData.users);
-      const active = semesterData.semesters.find(
-        (semester) => semester.isActive,
-      );
-      if (active) {
-        setSemesterFilter((current) => current || String(active.semesterId));
-        setForm((current) => ({
-          ...current,
-          semesterId: current.semesterId || String(active.semesterId),
-        }));
-      }
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudieron cargar los cursos",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const filtered = useMemo(
-    () =>
-      offerings.filter((offering) => {
-        const matchesSearch =
-          !search.trim() ||
-          offering.courseName.toLowerCase().includes(search.toLowerCase());
-        return (
-          matchesSearch &&
-          (!semesterFilter || offering.semesterId === Number(semesterFilter)) &&
-          (!levelFilter || offering.academicLevel === levelFilter)
-        );
-      }),
-    [offerings, search, semesterFilter, levelFilter],
-  );
-
-  const save = async () => {
-    if (
-      !form.courseName.trim() ||
-      !form.description.trim() ||
-      !form.programId ||
-      !form.semesterId ||
-      form.blockTypes.length === 0
-    ) {
-      setError(
-        "Completa el nombre, la descripción, el programa, el semestre y al menos un bloque.",
-      );
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await repositoryService.createOffering({
-        courseName: form.courseName.trim(),
-        description: form.description.trim(),
-        programId: Number(form.programId),
-        semesterId: Number(form.semesterId),
-        teacherId: form.teacherId ? Number(form.teacherId) : undefined,
-        blockTypes: form.blockTypes,
-      });
-      setForm((current) => ({
-        ...current,
-        courseName: "",
-        description: "",
-        teacherId: "",
-        programId: "",
-        blockTypes: [],
-      }));
-      setView("list");
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo agregar el curso",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openCourseEditor = (offering: Offering) => {
-    setError("");
-    setEditingCourse(offering);
-    setEditForm({
-      courseName: offering.courseName,
-      courseCode: offering.courseCode,
-      description: offering.description || "",
-      credits: String(offering.credits),
-      programId: String(offering.programId),
-    });
-  };
-
-  const saveCourseEdit = async () => {
-    if (
-      !editingCourse ||
-      !editForm.courseName.trim() ||
-      !editForm.courseCode.trim() ||
-      !editForm.description.trim() ||
-      !editForm.programId ||
-      Number(editForm.credits) < 1
-    ) {
-      setError("Completa todos los datos obligatorios del curso.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await repositoryService.updateCourse(editingCourse.courseId, {
-        courseName: editForm.courseName.trim(),
-        courseCode: editForm.courseCode.trim().toUpperCase(),
-        description: editForm.description.trim(),
-        credits: Number(editForm.credits),
-        programId: Number(editForm.programId),
-      });
-      setEditingCourse(null);
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "No se pudo editar el curso",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDeleteCourse = async () => {
-    if (!deletingCourse) return;
-    setDeletePending(true);
-    setError("");
-    try {
-      await repositoryService.deleteCourse(deletingCourse.courseId);
-      setDeletingCourse(null);
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "No se pudo eliminar el curso",
-      );
-    } finally {
-      setDeletePending(false);
-    }
-  };
-
-  if (view === "create") {
-    const filteredPrograms = programs.filter(
-      (program) =>
-        !form.academicLevel || program.academicLevel === form.academicLevel,
-    );
-    return (
-      <div className="repo-maint-content">
-        <button
-          type="button"
-          className="repo-back-button"
-          onClick={() => setView("list")}
-        >
-          ‹ Volver a cursos
-        </button>
-        <div className="repo-section-heading">
-          <h2>Agregar curso</h2>
-          <button
-            type="button"
-            className="repo-outline-button"
-            onClick={save}
-            disabled={saving}
-          >
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
-        </div>
-        <InlineError message={error} />
-        <div className="repo-maint-form">
-          <label className="repo-form-field repo-form-field--wide">
-            <span>Nombre del curso</span>
-            <input
-              value={form.courseName}
-              onChange={(event) =>
-                setForm({ ...form, courseName: event.target.value })
-              }
-            />
-          </label>
-          <label className="repo-form-field repo-form-field--wide">
-            <span>Descripción del curso</span>
-            <textarea
-              rows={5}
-              required
-              maxLength={2000}
-              value={form.description}
-              onChange={(event) =>
-                setForm({ ...form, description: event.target.value })
-              }
-            />
-          </label>
-          <label className="repo-form-field">
-            <span>Docente</span>
-            <select
-              value={form.teacherId}
-              onChange={(event) =>
-                setForm({ ...form, teacherId: event.target.value })
-              }
-            >
-              <option value="">Por asignar</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.userId} value={teacher.userId}>
-                  {teacher.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Tipo de programa</span>
-              <select
-                value={form.academicLevel}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    academicLevel: event.target.value as AcademicLevel,
-                    programId: "",
-                  })
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="UNDERGRADUATE">Pregrado</option>
-                <option value="POSTGRADUATE">Posgrado</option>
-              </select>
-            </label>
-            <label className="repo-form-field">
-              <span>Programa</span>
-              <select
-                value={form.programId}
-                onChange={(event) =>
-                  setForm({ ...form, programId: event.target.value })
-                }
-              >
-                <option value="">Seleccionar</option>
-                {filteredPrograms.map((program) => (
-                  <option key={program.programId} value={program.programId}>
-                    {program.programName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="repo-form-field">
-            <span>Semestre</span>
-            <select
-              value={form.semesterId}
-              onChange={(event) =>
-                setForm({ ...form, semesterId: event.target.value })
-              }
-            >
-              <option value="">Seleccionar</option>
-              {semesters.map((semester) => (
-                <option key={semester.semesterId} value={semester.semesterId}>
-                  {semester.semesterName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <fieldset className="repo-checkboxes">
-            <legend>Bloques a visualizar:</legend>
-            {(["THEORY", "PRACTICE"] as BlockType[]).map((type) => (
-              <label key={type}>
-                <input
-                  type="checkbox"
-                  checked={form.blockTypes.includes(type)}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      blockTypes: event.target.checked
-                        ? [...form.blockTypes, type]
-                        : form.blockTypes.filter((item) => item !== type),
-                    })
-                  }
-                />
-                <span>{type === "THEORY" ? "Teoría" : "Práctica"}</span>
-              </label>
-            ))}
-          </fieldset>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="repo-maint-content">
-      <div className="repo-section-heading">
-        <h2>Cursos</h2>
-        <button
-          type="button"
-          className="repo-outline-button"
-          onClick={() => setView("create")}
-        >
-          <Plus /> Agregar curso
-        </button>
-      </div>
-      <InlineError message={error} />
-      <div className="repo-table-filters">
-        <label className="repo-search-field">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar"
-          />
-          <Search />
-        </label>
-        <label className="repo-select-field">
-          <span>Semestre</span>
-          <select
-            value={semesterFilter}
-            onChange={(event) => setSemesterFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            {semesters.map((semester) => (
-              <option key={semester.semesterId} value={semester.semesterId}>
-                {semester.semesterName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="repo-select-field">
-          <span>Tipo de programa</span>
-          <select
-            value={levelFilter}
-            onChange={(event) => setLevelFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value="UNDERGRADUATE">Pregrado</option>
-            <option value="POSTGRADUATE">Posgrado</option>
-          </select>
-        </label>
-      </div>
-      <div className="repo-data-table-wrap">
-        <table className="repo-data-table">
-          <thead>
-            <tr>
-              <th>Nombre del curso</th>
-              <th>Programa</th>
-              <th>Tipo de programa</th>
-              <th>Semestre</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5}>Cargando…</td>
-              </tr>
-            ) : filtered.length ? (
-              filtered.map((offering) => (
-                <tr key={offering.offeringId}>
-                  <td>{offering.courseName}</td>
-                  <td>{offering.programName}</td>
-                  <td>
-                    {offering.academicLevel === "UNDERGRADUATE"
-                      ? "Pregrado"
-                      : "Posgrado"}
-                  </td>
-                  <td>{offering.semesterName}</td>
-                  <td>
-                    <div className="repo-table-actions">
-                      <button
-                        type="button"
-                        className="repo-table-action"
-                        onClick={() => openCourseEditor(offering)}
-                      >
-                        <Pencil /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="repo-table-action repo-table-action--danger"
-                        onClick={() => setDeletingCourse(offering)}
-                      >
-                        <Trash2 /> Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5}>No hay cursos para mostrar.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Dialog
-        open={!!editingCourse}
-        onOpenChange={(open) => !open && setEditingCourse(null)}
-      >
-        <DialogContent className="repo-maint-dialog">
-          <DialogHeader>
-            <DialogTitle>Editar curso</DialogTitle>
-            <DialogDescription>
-              Actualiza la información general del curso.
-            </DialogDescription>
-          </DialogHeader>
-          <label className="repo-form-field">
-            <span>Nombre del curso</span>
-            <input
-              value={editForm.courseName}
-              onChange={(event) =>
-                setEditForm({ ...editForm, courseName: event.target.value })
-              }
-            />
-          </label>
-          <div className="repo-form-row">
-            <label className="repo-form-field">
-              <span>Código</span>
-              <input
-                value={editForm.courseCode}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, courseCode: event.target.value })
-                }
-              />
-            </label>
-            <label className="repo-form-field">
-              <span>Créditos</span>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={editForm.credits}
-                onChange={(event) =>
-                  setEditForm({ ...editForm, credits: event.target.value })
-                }
-              />
-            </label>
-          </div>
-          <label className="repo-form-field">
-            <span>Programa</span>
-            <select
-              value={editForm.programId}
-              onChange={(event) =>
-                setEditForm({ ...editForm, programId: event.target.value })
-              }
-            >
-              {programs.map((program) => (
-                <option key={program.programId} value={program.programId}>
-                  {program.programName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="repo-form-field">
-            <span>Descripción del curso</span>
-            <textarea
-              rows={5}
-              maxLength={2000}
-              value={editForm.description}
-              onChange={(event) =>
-                setEditForm({ ...editForm, description: event.target.value })
-              }
-            />
-          </label>
-          <InlineError message={error} />
-          <button
-            type="button"
-            className="repo-primary-button"
-            onClick={() => void saveCourseEdit()}
-            disabled={saving || !editForm.description.trim()}
-          >
-            {saving ? "Guardando…" : "Guardar cambios"}
-          </button>
-        </DialogContent>
-      </Dialog>
-      <ConfirmDialog
-        open={!!deletingCourse}
-        onOpenChange={(open) => !open && setDeletingCourse(null)}
-        title="Eliminar curso"
-        description={`Se eliminará “${deletingCourse?.courseName || ""}” y dejará de aparecer en todos sus semestres. Esta acción no se puede deshacer.`}
-        pending={deletePending}
-        onConfirm={confirmDeleteCourse}
-      />
-    </div>
-  );
 }
 
 function ProgramsSection() {
@@ -1384,15 +863,18 @@ function TeachersSection() {
     setNotice("");
     try {
       const temporaryPassword = generateTemporaryPassword();
-      await repositoryService.resetTeacherTemporaryPassword(
+      const response = await repositoryService.resetTeacherTemporaryPassword(
         email,
         temporaryPassword,
       );
       setCreatedCredentials({ email, password: temporaryPassword });
       setCopied(false);
       setNotice(
-        `Se generó una nueva contraseña temporal para ${email}. Entrégasela de forma segura al docente.`,
+        response.accountProvisioned
+          ? `Se creó y vinculó la cuenta de acceso de ${email}. Entrégale la contraseña temporal de forma segura.`
+          : `Se generó una nueva contraseña temporal para ${email}. Entrégasela de forma segura al docente.`,
       );
+      if (response.accountProvisioned) await load();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -1461,7 +943,7 @@ function TeachersSection() {
   const copyCredentials = async () => {
     if (!createdCredentials) return;
     try {
-      await navigator.clipboard.writeText(
+      await copyText(
         `Usuario: ${createdCredentials.email}\nContraseña temporal: ${createdCredentials.password}`,
       );
       setCopied(true);
@@ -1597,13 +1079,14 @@ function TeachersSection() {
             <tr>
               <th>Docente</th>
               <th>Correo</th>
+              <th>Acceso</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3}>Cargando…</td>
+                <td colSpan={4}>Cargando…</td>
               </tr>
             ) : filtered.length ? (
               filtered.map((teacher) => (
@@ -1611,17 +1094,38 @@ function TeachersSection() {
                   <td>{teacher.fullName}</td>
                   <td>{teacher.email}</td>
                   <td>
+                    <span
+                      className={`repo-access-status ${
+                        teacher.authProvider === "AWS_COGNITO"
+                          ? "repo-access-status--linked"
+                          : "repo-access-status--local"
+                      }`}
+                    >
+                      {teacher.authProvider === "AWS_COGNITO"
+                        ? "Cuenta vinculada"
+                        : "Sin acceso"}
+                    </span>
+                  </td>
+                  <td>
                     <div className="repo-table-actions">
                       <button
                         type="button"
                         className="repo-table-action"
                         onClick={() => void resendInvitation(teacher.email)}
-                        disabled={resendingEmail === teacher.email}
+                        disabled={
+                          resendingEmail === teacher.email ||
+                          teacher.authProvider !== "AWS_COGNITO"
+                        }
+                        title={
+                          teacher.authProvider === "AWS_COGNITO"
+                            ? "Reenviar invitación temporal"
+                            : "Primero crea el acceso con una clave temporal"
+                        }
                       >
                         <Send />
                         {resendingEmail === teacher.email
                           ? "Reenviando…"
-                          : "Reenviar invitación"}
+                          : "Reenviar"}
                       </button>
                       <button
                         type="button"
@@ -1644,11 +1148,18 @@ function TeachersSection() {
                           void resetTemporaryPassword(teacher.email)
                         }
                         disabled={resettingEmail === teacher.email}
+                        title={
+                          teacher.authProvider === "LOCAL"
+                            ? "Crear y vincular una cuenta con contraseña temporal"
+                            : "Generar una nueva contraseña temporal"
+                        }
                       >
                         <KeyRound />
                         {resettingEmail === teacher.email
                           ? "Generando…"
-                          : "Generar clave temporal"}
+                          : teacher.authProvider === "LOCAL"
+                            ? "Crear acceso"
+                            : "Nueva clave"}
                       </button>
                     </div>
                   </td>
@@ -1656,7 +1167,7 @@ function TeachersSection() {
               ))
             ) : (
               <tr>
-                <td colSpan={3}>No hay docentes para mostrar.</td>
+                <td colSpan={4}>No hay docentes para mostrar.</td>
               </tr>
             )}
           </tbody>
@@ -1725,6 +1236,16 @@ function TeachersSection() {
 export function Maintenance() {
   const backendUser = useAuthStore((state) => state.backendUser);
   const [section, setSection] = useState<Section>("courses");
+  // Opening Ofertas from a course: filtered by it, or creating an offering of it.
+  const [offeringContext, setOfferingContext] = useState<{
+    course: Course;
+    creating: boolean;
+    key: number;
+  }>();
+  const openOfferings = (course: Course, creating: boolean) => {
+    setOfferingContext({ course, creating, key: Date.now() });
+    setSection("offerings");
+  };
   if (!backendUser)
     return (
       <div className="repo-page-state">
@@ -1742,15 +1263,32 @@ export function Maintenance() {
             <button
               type="button"
               key={item.id}
-              onClick={() => setSection(item.id)}
+              onClick={() => {
+                setOfferingContext(undefined);
+                setSection(item.id);
+              }}
               className={section === item.id ? "active" : ""}
             >
               {item.label}
             </button>
           ))}
         </aside>
-        {section === "courses" && <CoursesSection />}
+        {section === "courses" && (
+          <CourseCatalogSection
+            onShowOfferings={(course) => openOfferings(course, false)}
+            onCreateOffering={(course) => openOfferings(course, true)}
+          />
+        )}
+        {section === "offerings" && (
+          <OfferingsSection
+            key={offeringContext?.key ?? 0}
+            initialCourse={offeringContext?.course}
+            startCreating={offeringContext?.creating}
+          />
+        )}
+        {section === "blocks" && <CourseBlocksManagement />}
         {section === "programs" && <ProgramsSection />}
+        {section === "plans" && <CurriculumPlansManagement />}
         {section === "semesters" && <SemestersSection />}
         {section === "teachers" && <TeachersSection />}
         {section === "students" && <StudentsManagement />}

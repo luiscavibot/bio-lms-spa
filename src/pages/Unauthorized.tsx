@@ -53,7 +53,7 @@ export function Unauthorized() {
 							className="w-full"
 						>
 							<Home className="w-4 h-4 mr-2" />
-							Ir a Cursos
+							Ir a Cursos dictados
 						</Button>
 					</div>
 				</CardContent>

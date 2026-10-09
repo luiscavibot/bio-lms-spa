@@ -205,6 +205,25 @@
   .repo-course-card__top p {
     @apply mt-3 text-sm text-slate-700;
   }
+  /* Course code under the title: present but quieter than the title. */
+  .repo-course-code {
+    @apply mt-1 block text-xs font-medium uppercase tracking-wider text-slate-500;
+  }
+  .repo-course-code--heading {
+    @apply -mt-2 mb-4 text-sm;
+  }
+  .repo-table-sub {
+    @apply mt-0.5 block text-xs text-slate-500;
+  }
+  .repo-filter-chip {
+    @apply inline-flex items-center gap-2 self-end rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700;
+  }
+  .repo-filter-chip button {
+    @apply text-slate-500 hover:text-slate-900;
+  }
+  .repo-link-button {
+    @apply text-sm font-medium text-emerald-800 underline-offset-2 hover:underline;
+  }
   .repo-pill {
     @apply absolute right-5 top-5 rounded-full border border-emerald-800 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900;
   }
@@ -257,6 +276,15 @@
   .repo-credentials code {
     @apply rounded bg-white px-2 py-1 font-mono text-emerald-900;
   }
+  .repo-access-status {
+    @apply inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+  .repo-access-status--linked {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+  .repo-access-status--local {
+    @apply border-amber-200 bg-amber-50 text-amber-800;
+  }
 
   .repo-breadcrumb {
     @apply mb-8 flex items-center gap-1 text-sm;
@@ -286,13 +314,16 @@
     @apply mt-5 max-w-2xl text-slate-600;
   }
   .repo-block-select {
-    @apply self-center;
+    @apply w-full self-center sm:w-80;
   }
   .repo-weeks-heading {
     @apply flex items-center justify-between border-b border-slate-200 py-3;
   }
   .repo-weeks-heading h2 {
     @apply text-sm font-bold;
+  }
+  .repo-weeks-heading p {
+    @apply mt-1 text-xs text-slate-500;
   }
   .repo-outline-button {
     @apply inline-flex min-h-9 items-center justify-center gap-2 rounded border border-slate-400 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50;
@@ -304,7 +335,19 @@
     @apply divide-y divide-slate-200;
   }
   .repo-week summary {
-    @apply flex min-h-14 list-none items-center justify-between rounded bg-slate-100 px-4 text-sm font-medium;
+    @apply flex min-h-14 list-none items-center gap-3 rounded bg-slate-100 px-4 text-sm font-medium;
+  }
+  .repo-week summary > span:first-child {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+  .repo-week summary small {
+    @apply text-xs font-normal text-slate-500;
+  }
+  .repo-week-lock {
+    @apply inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-[0.7rem] font-semibold text-slate-600;
+  }
+  .repo-week-lock svg {
+    @apply h-3.5 w-3.5;
   }
   .repo-week summary::-webkit-details-marker {
     display: none;
@@ -342,6 +385,76 @@
   }
   .repo-material-row__main > button {
     @apply text-left text-sm font-semibold hover:text-emerald-700 hover:underline;
+  }
+  .repo-search-picker {
+    @apply flex flex-col gap-2;
+  }
+  .repo-search-picker__label {
+    @apply text-sm font-medium text-slate-800;
+  }
+  .repo-search-picker__inputs {
+    @apply flex flex-col gap-2 sm:flex-row;
+  }
+  .repo-search-picker__inputs select {
+    @apply h-10 rounded border border-slate-300 bg-white px-3 text-sm sm:w-48;
+  }
+  .repo-search-picker__inputs input {
+    @apply h-10 min-w-0 flex-1 rounded border border-slate-300 bg-white px-3 text-sm;
+  }
+  .repo-search-picker__results {
+    @apply max-h-64 overflow-y-auto rounded border border-slate-200 bg-white;
+  }
+  .repo-search-picker__results li + li {
+    @apply border-t border-slate-100;
+  }
+  .repo-search-picker__results button {
+    @apply flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent;
+  }
+  .repo-search-picker__results strong {
+    @apply text-sm font-medium text-slate-900;
+  }
+  .repo-search-picker__results small,
+  .repo-search-picker__selected small {
+    @apply text-xs text-slate-500;
+  }
+  .repo-search-picker__note {
+    @apply px-3 py-2 text-sm text-slate-500;
+  }
+  .repo-search-picker > small {
+    @apply text-xs text-slate-500;
+  }
+  .repo-search-picker__selected {
+    @apply flex items-center justify-between gap-3 rounded border border-emerald-700 bg-emerald-50 px-3 py-2;
+  }
+  .repo-search-picker__selected > div {
+    @apply flex flex-col gap-0.5;
+  }
+  .repo-search-picker__selected strong {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .repo-search-picker__selected button {
+    @apply inline-flex shrink-0 items-center gap-1 text-sm text-slate-600 hover:text-slate-900;
+  }
+  .repo-pagination {
+    @apply mt-8 flex flex-col items-center gap-3 text-sm text-slate-600;
+  }
+  .repo-pagination__pages {
+    @apply flex flex-wrap items-center justify-center gap-1;
+  }
+  .repo-pagination__pages button {
+    @apply inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .repo-pagination__pages button svg {
+    @apply h-4 w-4;
+  }
+  .repo-pagination__pages .repo-pagination__current {
+    @apply border-emerald-700 bg-emerald-700 text-white hover:text-white;
+  }
+  .repo-pagination__pages span {
+    @apply px-1 text-slate-400;
+  }
+  .repo-material-description {
+    @apply mt-1 whitespace-pre-line text-sm text-slate-700;
   }
   .repo-material-meta {
     @apply mt-2 text-xs text-slate-500;
@@ -385,6 +498,9 @@
   }
   .repo-form-field--wide {
     @apply max-w-3xl;
+  }
+  .repo-form-hint {
+    @apply -mt-2 max-w-3xl text-xs leading-relaxed text-slate-500;
   }
   .repo-dropzone {
     @apply mt-2 flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 p-6 text-center transition hover:border-emerald-600 hover:bg-emerald-50/30;
@@ -439,6 +555,61 @@
   .repo-section-heading h2 {
     @apply text-xl font-bold;
   }
+  .repo-blocks-heading {
+    @apply items-start;
+  }
+  .repo-blocks-heading p,
+  .repo-config-section__heading p {
+    @apply mt-1 text-sm text-slate-600;
+  }
+  .repo-course-config-select {
+    @apply mb-8 max-w-3xl;
+  }
+  .repo-config-section {
+    @apply mb-10 border-t border-slate-200 pt-7;
+  }
+  .repo-config-section__heading {
+    @apply mb-5 flex items-start justify-between gap-4;
+  }
+  .repo-config-section__heading h3 {
+    @apply text-lg font-bold text-slate-900;
+  }
+  .repo-inline-assignment {
+    @apply flex max-w-3xl flex-col items-stretch gap-3 sm:flex-row sm:items-end;
+  }
+  .repo-inline-assignment .repo-form-field {
+    @apply flex-1;
+  }
+  .repo-block-config-grid {
+    @apply grid gap-5 xl:grid-cols-2;
+  }
+  .repo-block-config-card {
+    @apply flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5;
+  }
+  .repo-block-config-card--theory {
+    @apply border-emerald-200 bg-emerald-50;
+  }
+  .repo-block-config-card__title {
+    @apply flex items-start justify-between gap-4;
+  }
+  .repo-block-config-card__title > div > span {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .repo-block-config-card__title h4 {
+    @apply mt-1 text-lg font-bold;
+  }
+  .repo-block-config-card dl {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+  .repo-block-config-card dt {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .repo-block-config-card dd {
+    @apply mt-1 text-sm font-medium;
+  }
+  .repo-table-select {
+    @apply min-w-52 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:cursor-wait disabled:opacity-60;
+  }
   .repo-back-button {
     @apply mb-6 text-sm font-medium hover:text-emerald-700 hover:underline;
   }
@@ -480,6 +651,63 @@
   }
   .repo-status--active {
     @apply bg-emerald-100 text-emerald-900;
+  }
+  .repo-status--warning {
+    @apply items-center gap-1 bg-amber-100 text-amber-900;
+  }
+  .repo-status--warning svg {
+    @apply h-3.5 w-3.5;
+  }
+  .repo-block-nav {
+    @apply mb-4 flex flex-col gap-3;
+  }
+  .repo-block-tabs {
+    @apply flex flex-wrap gap-1 border-b border-slate-200;
+  }
+  .repo-block-tabs button {
+    @apply -mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900;
+  }
+  .repo-block-tabs button.active {
+    @apply border-emerald-700 text-emerald-900;
+  }
+  .repo-block-tabs button span {
+    @apply rounded-full bg-slate-100 px-2 text-xs text-slate-600;
+  }
+  .repo-course-card__blocks {
+    @apply text-xs text-slate-500;
+  }
+  .repo-program-checks {
+    @apply flex flex-col gap-2 border-0 p-0;
+  }
+  .repo-program-checks legend {
+    @apply text-sm font-medium text-slate-800;
+  }
+  .repo-program-checks > div {
+    @apply grid gap-1 sm:grid-cols-2;
+  }
+  .repo-program-checks label {
+    @apply flex items-center gap-2 text-sm text-slate-700;
+  }
+  .repo-chip-list {
+    @apply flex flex-wrap gap-2;
+  }
+  .repo-block-section + .repo-block-section {
+    @apply mt-5;
+  }
+  .repo-block-section h4 {
+    @apply mb-2 text-sm font-semibold text-slate-700;
+  }
+  .repo-block-access-note {
+    @apply mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600;
+  }
+  .repo-block-access-note strong {
+    @apply text-slate-900;
+  }
+  .repo-block-fact {
+    @apply flex flex-col gap-0.5 border-r border-slate-200 pr-4 last:border-r-0;
+  }
+  .repo-block-fact > span {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
   }
   .repo-toggle-field {
     @apply flex items-center gap-3 text-sm font-medium text-slate-800;

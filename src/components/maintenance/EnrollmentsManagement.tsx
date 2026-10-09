@@ -1,6 +1,7 @@
 import { Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { OfferingPicker } from "@/components/maintenance/OfferingPicker";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,6 @@ import {
 import {
   repositoryService,
   type Enrollment,
-  type Offering,
   type Student,
 } from "@/services/repositoryService";
 
@@ -37,7 +37,6 @@ function formatDate(value: string) {
 export function EnrollmentsManagement() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [offerings, setOfferings] = useState<Offering[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,14 +51,12 @@ export function EnrollmentsManagement() {
     setLoading(true);
     setError("");
     try {
-      const [enrollmentData, studentData, offeringData] = await Promise.all([
+      const [enrollmentData, studentData] = await Promise.all([
         repositoryService.getEnrollments(),
         repositoryService.getStudents(),
-        repositoryService.getOfferings(),
       ]);
       setEnrollments(enrollmentData.enrollments);
       setStudents(studentData.users);
-      setOfferings(offeringData.offerings);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -87,9 +84,10 @@ export function EnrollmentsManagement() {
     );
   }, [enrollments, search]);
 
-  const availableOfferings = useMemo(() => {
-    if (!form.userId) return offerings;
-    const activeOfferingIds = new Set(
+  // Offerings the chosen student is already actively enrolled in are hidden from the picker.
+  const enrolledOfferingIds = useMemo(() => {
+    if (!form.userId) return new Set<number>();
+    return new Set(
       enrollments
         .filter(
           (enrollment) =>
@@ -98,10 +96,7 @@ export function EnrollmentsManagement() {
         )
         .map((enrollment) => enrollment.courseOfferingId),
     );
-    return offerings.filter(
-      (offering) => !activeOfferingIds.has(offering.offeringId),
-    );
-  }, [enrollments, form.userId, offerings]);
+  }, [enrollments, form.userId]);
 
   const closeDialog = () => {
     setDialogOpen(false);
@@ -162,14 +157,8 @@ export function EnrollmentsManagement() {
           type="button"
           className="repo-outline-button"
           onClick={() => setDialogOpen(true)}
-          disabled={loading || students.length === 0 || offerings.length === 0}
-          title={
-            students.length === 0
-              ? "Primero agrega un alumno"
-              : offerings.length === 0
-                ? "Primero agrega un curso"
-                : undefined
-          }
+          disabled={loading || students.length === 0}
+          title={students.length === 0 ? "Primero agrega un alumno" : undefined}
         >
           <Plus /> Nueva matrícula
         </button>
@@ -194,6 +183,7 @@ export function EnrollmentsManagement() {
               <th>Alumno</th>
               <th>Curso</th>
               <th>Semestre</th>
+              <th>Práctica</th>
               <th>Estado</th>
               <th>Fecha</th>
               <th>Acciones</th>
@@ -202,11 +192,11 @@ export function EnrollmentsManagement() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>Cargando…</td>
+                <td colSpan={7}>Cargando…</td>
               </tr>
             ) : filteredEnrollments.length === 0 ? (
               <tr>
-                <td colSpan={6} className="repo-empty">
+                <td colSpan={7} className="repo-empty">
                   {search
                     ? "No se encontraron matrículas."
                     : "Aún no hay matrículas registradas."}
@@ -228,6 +218,7 @@ export function EnrollmentsManagement() {
                     </small>
                   </td>
                   <td>{enrollment.semesterName}</td>
+                  <td>{enrollment.practiceBlockName || "Sin asignar"}</td>
                   <td>
                     <span
                       className={
@@ -287,27 +278,13 @@ export function EnrollmentsManagement() {
               ))}
             </select>
           </label>
-          <label className="repo-form-field">
-            <span>Curso</span>
-            <select
-              value={form.courseOfferingId}
-              onChange={(event) =>
-                setForm({ ...form, courseOfferingId: event.target.value })
-              }
-              disabled={!form.userId}
-            >
-              <option value="">Seleccionar curso</option>
-              {availableOfferings.map((offering) => (
-                <option key={offering.offeringId} value={offering.offeringId}>
-                  {offering.courseName} ({offering.courseCode}) —{" "}
-                  {offering.semesterName}
-                </option>
-              ))}
-            </select>
-            {form.userId && availableOfferings.length === 0 && (
-              <small>El alumno ya está matriculado en todos los cursos.</small>
-            )}
-          </label>
+          <OfferingPicker
+            value={form.courseOfferingId}
+            onChange={(courseOfferingId) => setForm({ ...form, courseOfferingId })}
+            excludeIds={enrolledOfferingIds}
+            disabled={!form.userId}
+            disabledHint="Elige primero al alumno."
+          />
           <button
             type="button"
             className="repo-primary-button"
