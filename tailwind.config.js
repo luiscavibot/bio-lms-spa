@@ -9,7 +9,7 @@ export default {
 				brand: {
 					DEFAULT: '#4578B8', // Azul institucional
 					50: '#F0F4F9',
-					100: '#E1E9F4',
+					100: '#D9E5F2',
 					200: '#C3D4E8',
 					300: '#9EB9DA',
 					400: '#7298C9',
@@ -27,19 +27,32 @@ export default {
 					300: '#88B1DC',
 					400: '#518DCB',
 					500: '#1A69BB',
-					600: '#185AA1',
+					600: '#14579C', // hover de botones, igual que Red Alumni
 					700: '#174D89',
 				},
 				gold: {
 					DEFAULT: '#FDC912', // Amarillo institucional: solo acentos, nunca texto sobre azul
-					100: '#FFF6D9',
+					100: '#FFF8D7',
+					200: '#F6DFA0',
 					300: '#FEE384',
+					700: '#725A00', // texto sobre fondos dorados claros
 				},
 				cream: {
 					DEFAULT: '#FAF1ED', // Crema: superficies puntuales, no el fondo general
-					200: '#EFDFD7',
+					200: '#E7DDD8',
 				},
 				ink: '#292D32', // Texto principal
+				line: '#E7DDD8', // Bordes cálidos, como en Red Alumni
+				gris: {
+					400: '#747B84',
+					500: '#5F6670',
+					700: '#454B52',
+				},
+				danger: {
+					50: '#FFF6F6',
+					200: '#F0CFCF',
+					600: '#9E1D1F',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -73,6 +86,11 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))',
 				},
+			},
+			boxShadow: {
+				soft: '0 1px 2px rgba(41,45,50,.06), 0 8px 24px rgba(69,120,184,.09)',
+				lifted: '0 18px 48px rgba(41,45,50,.2)',
+				action: '0 2px 10px rgba(26,105,187,.28)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
