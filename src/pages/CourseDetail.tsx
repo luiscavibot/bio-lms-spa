@@ -19,10 +19,6 @@ import {
 } from "@/services/repositoryService";
 import { authorsLine } from "@/lib/authors";
 import { BlockNavigator } from "@/components/BlockNavigator";
-import {
-  FilePreviewDialog,
-  type FilePreviewRequest,
-} from "@/components/FilePreviewDialog";
 
 const materialLabels: Record<MaterialCategory, string> = {
   EXTERNAL_LINK: "Enlace externo",
@@ -509,6 +505,10 @@ export function CourseDetail() {
     void loadWeeks();
   }, [loadWeeks]);
 
+  /**
+   * Opens in a new tab. The API decides what the browser does: viewable files are served
+   * inline and shown there; the rest are served as attachments and only download.
+   */
   const openUrl = (url: string) => {
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -517,26 +517,20 @@ export function CourseDetail() {
     anchor.click();
   };
 
-  const [preview, setPreview] = useState<FilePreviewRequest | null>(null);
-
-  const openSyllabus = (blockIdToOpen: number) =>
-    setPreview({
-      title: "Sílabo",
-      load: (disposition) =>
-        repositoryService.getSyllabusAccess(blockIdToOpen, disposition),
-    });
+  const openSyllabus = async (blockIdToOpen: number) => {
+    try {
+      const { url } = await repositoryService.getSyllabusAccess(blockIdToOpen, "inline");
+      openUrl(url);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudo abrir el sílabo",
+      );
+    }
+  };
 
   const openMaterial = async (material: Material) => {
-    if (material.materialType === "FILE") {
-      setPreview({
-        title: material.title,
-        load: (disposition) =>
-          repositoryService.getMaterialFileAccess(material.id, disposition),
-      });
-      return;
-    }
     try {
-      const { url } = await repositoryService.getMaterialAccess(material.id);
+      const { url } = await repositoryService.getMaterialAccess(material.id, "inline");
       openUrl(url);
     } catch (reason) {
       setError(
@@ -652,7 +646,7 @@ export function CourseDetail() {
             <button
               type="button"
               className="repo-table-action"
-              onClick={() => openSyllabus(selectedBlock.blockId)}
+              onClick={() => void openSyllabus(selectedBlock.blockId)}
             >
               <FileText /> Sílabo
             </button>
@@ -800,7 +794,6 @@ export function CourseDetail() {
         onOpenChange={(open) => !open && setEditingWeek(null)}
         onSaved={loadWeeks}
       />
-      <FilePreviewDialog request={preview} onClose={() => setPreview(null)} />
     </section>
   );
 }

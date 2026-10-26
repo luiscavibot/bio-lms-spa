@@ -214,6 +214,9 @@ export interface FileAccess {
   mimeType: string;
 }
 
+/** Links carry only the external URL; files add how the signed URL serves them. */
+export type MaterialAccess = { url: string } & Partial<Omit<FileAccess, "url">>;
+
 export interface Material {
   id: number;
   title: string;
@@ -596,14 +599,9 @@ export const repositoryService = {
   deleteMaterial(id: number) {
     return httpClient.delete<void>(`${API}/materials/${id}`);
   },
-  /** For links: the API answers with the external URL only. */
-  getMaterialAccess(id: number) {
-    return httpClient.get<{ url: string; expiresIn?: number }>(
-      `${API}/materials/${id}/access`,
-    );
-  },
-  getMaterialFileAccess(id: number, disposition: FileDisposition = "attachment") {
-    return httpClient.get<FileAccess>(
+  /** `inline` asks to view the file; links answer with the external URL only. */
+  getMaterialAccess(id: number, disposition: FileDisposition = "attachment") {
+    return httpClient.get<MaterialAccess>(
       `${API}/materials/${id}/access?disposition=${disposition}`,
     );
   },
