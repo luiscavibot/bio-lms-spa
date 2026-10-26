@@ -29,7 +29,7 @@ export function Layout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-white text-ink">
       <header className="repo-header">
         <div className="repo-header__inner">
           <NavLink

@@ -109,14 +109,14 @@ export function ForgotPassword() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-			<Card className="w-full max-w-md shadow-2xl border-primary/20">
+		<div className="min-h-screen bg-cream flex items-center justify-center p-4">
+			<Card className="w-full max-w-md shadow-2xl border-cream-200 border-t-4 border-t-gold">
 				<CardHeader className="space-y-4 text-center pb-8">
-					<div className="mx-auto w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
+					<div className="mx-auto w-20 h-20 bg-brand rounded-2xl flex items-center justify-center shadow-lg">
 						<BookOpen className="h-10 w-10 text-white" />
 					</div>
 					<div>
-						<CardTitle className="text-3xl font-bold text-primary">
+						<CardTitle className="text-3xl font-bold text-brand">
 							{step === 'success'
 								? '¡Contraseña Actualizada!'
 								: 'Recuperar Contraseña'}
