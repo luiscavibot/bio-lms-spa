@@ -505,6 +505,10 @@ export function CourseDetail() {
     void loadWeeks();
   }, [loadWeeks]);
 
+  /**
+   * Opens in a new tab. The API decides what the browser does: viewable files are served
+   * inline and shown there; the rest are served as attachments and only download.
+   */
   const openUrl = (url: string) => {
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -515,7 +519,7 @@ export function CourseDetail() {
 
   const openSyllabus = async (blockIdToOpen: number) => {
     try {
-      const { url } = await repositoryService.getSyllabusAccess(blockIdToOpen);
+      const { url } = await repositoryService.getSyllabusAccess(blockIdToOpen, "inline");
       openUrl(url);
     } catch (reason) {
       setError(
@@ -526,12 +530,8 @@ export function CourseDetail() {
 
   const openMaterial = async (material: Material) => {
     try {
-      const { url } = await repositoryService.getMaterialAccess(material.id);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.target = "_blank";
-      anchor.rel = "noopener noreferrer";
-      anchor.click();
+      const { url } = await repositoryService.getMaterialAccess(material.id, "inline");
+      openUrl(url);
     } catch (reason) {
       setError(
         reason instanceof Error

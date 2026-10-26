@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useHasRole } from "@/hooks/usePermissions";
 
+/** Escudo de la UNMSM, el mismo archivo del CMS de la Facultad que usa Red Alumni. */
+const ESCUDO_URL =
+  "https://d36uo5rgyynebe.cloudfront.net/ciencias-biologicas/universidad_nacional_mayor_de_san_marcos_logo_png_seeklogo_390422_48ace18936.png";
+
 export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const backendUser = useAuthStore((state) => state.backendUser);
@@ -29,7 +33,7 @@ export function Layout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-white text-ink">
       <header className="repo-header">
         <div className="repo-header__inner">
           <NavLink
@@ -37,9 +41,12 @@ export function Layout() {
             className="repo-brand"
             aria-label="Repositorio de Materiales Académicos - Facultad de Ciencias Biológicas - UNMSM"
           >
-            <span className="repo-brand__title">Repositorio de Materiales Académicos</span>
-            <span className="repo-brand__subtitle">
-              Facultad de Ciencias Biológicas - UNMSM
+            <img className="repo-escudo" src={ESCUDO_URL} alt="" aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="repo-brand__title">Repositorio de Materiales Académicos</span>
+              <span className="repo-brand__subtitle">
+                Facultad de Ciencias Biológicas - UNMSM
+              </span>
             </span>
           </NavLink>
           <nav className="repo-nav" aria-label="Navegación principal">

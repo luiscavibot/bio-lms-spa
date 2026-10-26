@@ -4,74 +4,72 @@
 
 @layer base {
   :root {
-    /* Paleta BioRepo basada en #228665 (Verde Esmeralda) */
+    /* Paleta institucional (ver tailwind.config.js). Fondo general blanco. */
     --background: 0 0% 100%;
-    --foreground: 160 25% 15%;
+    /* Texto #292D32 */
+    --foreground: 213 10% 18%;
 
-    /* Cards con sutil tinte verde */
     --card: 0 0% 100%;
-    --card-foreground: 160 20% 20%;
+    --card-foreground: 213 10% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 160 20% 20%;
+    --popover-foreground: 213 10% 18%;
 
-    /* Primary: Verde Esmeralda #228665 */
-    --primary: 160 59% 33%;
+    /* Primary: azul de acciones #1A69BB */
+    --primary: 211 76% 42%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Verde menta suave */
-    --secondary: 160 40% 95%;
-    --secondary-foreground: 160 59% 33%;
+    /* Secondary: azul institucional muy claro, con texto azul oscuro */
+    --secondary: 213 43% 96%;
+    --secondary-foreground: 215 45% 30%;
 
-    /* Muted: Gris verdoso */
-    --muted: 160 20% 96%;
-    --muted-foreground: 160 10% 45%;
+    --muted: 214 20% 96%;
+    --muted-foreground: 215 16% 42%;
 
-    /* Accent: Verde brillante para destacados */
-    --accent: 160 65% 45%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent: fondo de opciones enfocadas en menús */
+    --accent: 213 43% 96%;
+    --accent-foreground: 213 10% 18%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Bordes suaves */
-    --border: 160 15% 90%;
-    --input: 160 15% 90%;
-    --ring: 160 59% 33%;
+    /* Borde cálido #E7DDD8 */
+    --border: 20 22% 88%;
+    --input: 20 22% 88%;
+    --ring: 211 76% 42%;
 
-    --radius: 0.75rem;
+    /* 14px, como las tarjetas de Red Alumni */
+    --radius: 0.875rem;
   }
 
   .dark {
-    /* Modo oscuro con tonos verdes profundos */
-    --background: 160 25% 8%;
-    --foreground: 160 15% 95%;
+    --background: 215 30% 10%;
+    --foreground: 214 20% 95%;
 
-    --card: 160 20% 12%;
-    --card-foreground: 160 15% 95%;
+    --card: 215 28% 14%;
+    --card-foreground: 214 20% 95%;
 
-    --popover: 160 20% 12%;
-    --popover-foreground: 160 15% 95%;
+    --popover: 215 28% 14%;
+    --popover-foreground: 214 20% 95%;
 
-    /* Primary más brillante para modo oscuro */
-    --primary: 160 60% 45%;
-    --primary-foreground: 160 25% 8%;
+    --primary: 211 65% 58%;
+    --primary-foreground: 215 30% 10%;
 
-    --secondary: 160 25% 18%;
-    --secondary-foreground: 160 15% 95%;
+    --secondary: 215 28% 20%;
+    --secondary-foreground: 214 20% 95%;
 
-    --muted: 160 20% 15%;
-    --muted-foreground: 160 10% 65%;
+    --muted: 215 28% 16%;
+    --muted-foreground: 214 15% 65%;
 
-    --accent: 160 65% 50%;
-    --accent-foreground: 160 25% 8%;
+    --accent: 215 28% 20%;
+    --accent-foreground: 214 20% 95%;
 
     --destructive: 0 70% 50%;
-    --destructive-foreground: 160 15% 95%;
+    --destructive-foreground: 214 20% 95%;
 
-    --border: 160 20% 20%;
-    --input: 160 20% 20%;
-    --ring: 160 60% 45%;
+    --border: 215 25% 22%;
+    --input: 215 25% 22%;
+    --ring: 211 65% 58%;
   }
 }
 
@@ -92,8 +90,18 @@
       BlinkMacSystemFont,
       "Segoe UI",
       sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
     margin: 0;
     min-width: 320px;
+  }
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible {
+    outline: 3px solid #1a69bb;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
   button,
   input,
@@ -110,241 +118,271 @@
 
 @layer components {
   .repo-header {
-    @apply sticky top-0 z-40 border-b border-slate-200 bg-slate-100/95 backdrop-blur;
+    @apply sticky top-0 z-40 border-b border-line bg-white;
   }
   .repo-header__inner {
-    @apply mx-auto flex h-24 w-full max-w-[1280px] items-center justify-between px-5 md:px-10;
+    @apply mx-auto flex h-24 w-full max-w-[1280px] items-center gap-4 px-5 md:px-10;
   }
   .repo-brand {
-    @apply flex min-w-0 max-w-[20rem] flex-col text-slate-950;
+    @apply mr-auto flex min-w-0 items-center gap-3 text-ink hover:no-underline;
   }
   .repo-brand__title {
-    @apply text-base font-bold leading-tight sm:text-lg xl:text-xl;
+    @apply block truncate text-lg font-extrabold leading-tight tracking-[-0.015em] text-brand sm:text-xl xl:text-[24px];
   }
   .repo-brand__subtitle {
-    @apply mt-1 text-xs leading-tight text-slate-600;
+    @apply mt-0.5 block truncate text-[13px] leading-tight text-gris-500;
   }
   .repo-nav {
-    @apply absolute left-1/2 hidden -translate-x-1/2 items-center gap-12 lg:flex;
+    @apply hidden items-center gap-1 lg:flex;
   }
   .repo-nav-link {
-    @apply border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-slate-700 transition-colors hover:text-emerald-700;
+    @apply relative whitespace-nowrap rounded-[9px] px-3 py-2.5 text-sm font-bold text-gris-700 transition-colors hover:bg-cream hover:text-action;
   }
   .repo-nav-link--active {
-    @apply border-emerald-700 text-emerald-800;
+    @apply bg-cream text-action after:absolute after:inset-x-3 after:bottom-1 after:h-[3px] after:rounded-sm after:bg-gold after:content-[''];
   }
   .repo-account summary {
-    @apply flex list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-200;
+    @apply flex list-none items-center gap-2 rounded-[10px] border border-line bg-white px-3.5 py-2 text-sm font-semibold text-brand transition hover:border-action hover:bg-cream;
   }
   .repo-account summary::-webkit-details-marker {
     display: none;
   }
   .repo-account__menu {
-    @apply absolute right-0 top-12 w-64 rounded-lg border border-slate-200 bg-white p-3 shadow-xl;
+    @apply absolute right-0 top-12 w-64 rounded-[14px] border border-line bg-white p-3 text-ink shadow-lifted;
   }
   .repo-account__menu p {
-    @apply mb-2 truncate border-b pb-3 text-xs text-slate-500;
+    @apply mb-2 truncate border-b border-line pb-3 text-xs text-gris-500;
   }
   .repo-account__menu button {
-    @apply flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-slate-100;
+    @apply flex w-full items-center gap-2 rounded-[9px] px-2 py-2 text-left text-sm font-semibold text-gris-700 hover:bg-cream hover:text-action;
   }
   .repo-mobile-toggle {
-    @apply rounded-md p-2 hover:bg-slate-200 lg:hidden;
+    @apply rounded-[10px] border border-line p-2 text-brand hover:bg-cream lg:hidden;
   }
   .repo-mobile-nav {
-    @apply flex flex-col gap-1 border-t bg-white p-4 lg:hidden;
+    @apply flex flex-col gap-1 border-t border-line bg-white p-4 text-ink lg:hidden;
   }
   .repo-mobile-nav a,
   .repo-mobile-nav button {
-    @apply rounded-md px-4 py-3 text-left font-medium hover:bg-slate-100;
+    @apply rounded-[11px] px-4 py-3 text-left font-semibold text-gris-700 hover:bg-cream hover:text-action;
   }
   .repo-shell {
     @apply mx-auto w-full max-w-[1280px] px-5 py-10 md:px-10 lg:py-12;
   }
   .repo-page-title {
-    @apply mb-10 text-2xl font-bold text-slate-950;
+    @apply mb-8 text-[26px] font-bold leading-tight tracking-[-0.015em] text-brand after:mt-2.5 after:block after:h-1 after:w-[52px] after:rounded-sm after:bg-gold after:content-[''];
   }
 
   .repo-filters {
-    @apply mb-16 grid items-end gap-6 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr];
+    @apply mb-8 grid items-end gap-4 rounded-[14px] border border-line bg-white p-[18px] shadow-soft md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr];
   }
   .repo-filters > p {
-    @apply col-span-full mb-2 text-sm font-semibold;
+    @apply col-span-full text-lg font-bold text-brand;
   }
   .repo-search-field {
-    @apply flex h-12 items-center border-b border-slate-400 px-3 text-slate-700 focus-within:border-emerald-700;
+    @apply flex h-11 items-center gap-2 rounded-[10px] border border-line bg-white px-3.5 text-ink transition focus-within:border-action focus-within:ring-[3px] focus-within:ring-brand-100;
   }
   .repo-search-field input {
-    @apply min-w-0 flex-1 border-0 bg-transparent outline-none placeholder:text-slate-500;
+    @apply min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-gris-400;
   }
   .repo-search-field svg {
-    @apply h-5 w-5 shrink-0 text-slate-500;
+    @apply order-first h-[18px] w-[18px] shrink-0 text-gris-400;
   }
   .repo-select-field {
-    @apply flex min-w-0 flex-col border-b border-slate-400 px-3 pb-1;
+    @apply flex min-w-0 flex-col gap-1.5;
   }
   .repo-select-field span {
-    @apply text-[11px] text-slate-500;
+    @apply text-[12.5px] font-semibold text-gris-700;
   }
   .repo-select-field select {
-    @apply h-8 w-full border-0 bg-transparent p-0 text-sm outline-none;
+    @apply h-11 w-full rounded-[10px] border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-action focus:ring-[3px] focus:ring-brand-100;
   }
 
   .repo-course-grid {
-    @apply grid gap-7 sm:grid-cols-2 lg:grid-cols-3;
+    @apply grid gap-[18px] rounded-[14px] bg-cream p-4 sm:grid-cols-2 sm:p-[26px] lg:grid-cols-3;
   }
   .repo-course-card {
-    @apply flex min-h-72 flex-col overflow-hidden rounded-2xl border border-emerald-900/10 bg-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md;
+    @apply flex h-full min-h-64 flex-col overflow-hidden rounded-[14px] border border-line bg-white transition duration-200 hover:-translate-y-[3px] hover:border-brand-100 hover:shadow-soft;
   }
   .repo-course-card__top {
-    @apply relative flex-1 border-b border-slate-300 px-7 pb-7 pt-9;
+    @apply relative flex-1 px-5 pb-2 pt-12;
   }
   .repo-course-card__top h2 {
-    @apply pr-20 text-lg font-bold leading-snug;
+    @apply text-[17px] font-extrabold leading-snug text-brand;
   }
   .repo-course-card__top p {
-    @apply mt-3 text-sm text-slate-700;
+    @apply mt-2.5 text-[13px] text-gris-700;
   }
   /* Course code under the title: present but quieter than the title. */
   .repo-course-code {
-    @apply mt-1 block text-xs font-medium uppercase tracking-wider text-slate-500;
+    @apply mt-1 block text-xs font-semibold uppercase tracking-wider text-gris-500;
   }
   .repo-course-code--heading {
-    @apply -mt-2 mb-4 text-sm;
+    @apply -mt-1 mb-4 text-sm text-white/90;
   }
   .repo-table-sub {
-    @apply mt-0.5 block text-xs text-slate-500;
+    @apply mt-0.5 block text-xs text-gris-500;
   }
   .repo-filter-chip {
-    @apply inline-flex items-center gap-2 self-end rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700;
+    @apply inline-flex items-center gap-2 self-end rounded-full border border-brand-100 bg-brand-100 px-3 py-1.5 text-[12.5px] font-semibold text-action;
   }
   .repo-filter-chip button {
-    @apply text-slate-500 hover:text-slate-900;
+    @apply text-action hover:text-action-700;
   }
   .repo-link-button {
-    @apply text-sm font-medium text-emerald-800 underline-offset-2 hover:underline;
+    @apply text-sm font-semibold text-action underline-offset-2 hover:underline;
   }
   .repo-pill {
-    @apply absolute right-5 top-5 rounded-full border border-emerald-800 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900;
+    @apply absolute right-3 top-3 rounded-full bg-brand px-2.5 py-1 text-[11.5px] font-bold tracking-[0.02em] text-white shadow-[0_2px_8px_rgba(0,0,0,.18)];
   }
   .repo-course-card__bottom {
-    @apply space-y-2 px-7 py-6 text-sm;
+    @apply space-y-1 px-5 pb-5 text-[13px] text-gris-700;
   }
   .repo-course-card__bottom p:first-child {
-    @apply font-medium;
+    @apply font-semibold text-ink;
   }
   .repo-primary-action {
-    @apply mt-5 flex h-11 w-full items-center justify-center rounded-full bg-emerald-700 font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2;
+    @apply mt-4 flex h-10 w-full items-center justify-center rounded-[10px] border border-line bg-white text-sm font-semibold text-brand transition hover:-translate-y-px hover:border-action hover:bg-cream hover:text-action focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-100;
   }
 
   .repo-page-state {
-    @apply flex min-h-64 items-center justify-center gap-3 text-slate-600;
+    @apply flex min-h-64 items-center justify-center gap-3 text-gris-500;
   }
   .repo-spinner {
-    @apply h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-700;
+    @apply h-6 w-6 animate-spin rounded-full border-2 border-line border-t-action;
   }
   .repo-empty {
-    @apply rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center text-slate-500;
+    @apply rounded-[14px] bg-cream px-6 py-14 text-center text-gris-500;
   }
   .repo-alert {
-    @apply my-4 rounded-lg border px-4 py-3 text-sm;
+    @apply my-4 rounded-[9px] border border-l-[5px] px-[18px] py-3.5 text-[13.5px];
   }
   .repo-alert--error {
-    @apply border-red-200 bg-red-50 text-red-800;
+    @apply border-danger-200 border-l-danger-600 bg-danger-50 text-danger-600;
   }
+  /* Verde semántico de éxito: no forma parte de la paleta de marca. */
   .repo-alert--success {
-    @apply border-emerald-200 bg-emerald-50 text-emerald-900;
+    @apply border-green-200 border-l-green-600 bg-green-50 text-green-800;
   }
   .repo-credentials {
-    @apply my-5 flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-slate-800;
+    @apply my-5 flex flex-col gap-4 rounded-[9px] border border-gold-200 border-l-[5px] border-l-gold bg-cream p-5 text-sm text-ink;
   }
   .repo-credentials strong {
-    @apply text-base text-emerald-900;
+    @apply text-base text-brand;
   }
   .repo-credentials p {
-    @apply mt-1 text-slate-600;
+    @apply mt-1 text-gris-700;
   }
   .repo-credentials dl {
     @apply grid gap-3 sm:grid-cols-2;
   }
   .repo-credentials dt {
-    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.12em] text-action;
   }
   .repo-credentials dd {
     @apply mt-1 break-all font-medium;
   }
   .repo-credentials code {
-    @apply rounded bg-white px-2 py-1 font-mono text-emerald-900;
+    @apply rounded-md bg-white px-2 py-1 font-mono text-brand;
   }
   .repo-access-status {
-    @apply inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-[12.5px] font-semibold;
   }
   .repo-access-status--linked {
-    @apply border-emerald-200 bg-emerald-50 text-emerald-800;
+    @apply border-brand-100 bg-brand-100 text-action;
   }
   .repo-access-status--local {
-    @apply border-amber-200 bg-amber-50 text-amber-800;
+    @apply border-gold-200 bg-gold-100 text-gold-700;
   }
 
   .repo-breadcrumb {
-    @apply mb-8 flex items-center gap-1 text-sm;
+    @apply mb-4 flex items-center gap-2 text-[13px] text-gris-500;
   }
   .repo-breadcrumb a {
-    @apply font-semibold underline underline-offset-4 hover:text-emerald-700;
+    @apply font-semibold text-action hover:underline;
   }
   .repo-breadcrumb span:last-child {
-    @apply text-slate-600;
+    @apply text-gris-500;
   }
   .repo-course-heading {
-    @apply mb-14 grid gap-8 md:grid-cols-[1fr_240px] md:items-center;
+    @apply relative mb-8 overflow-hidden rounded-[14px] border-t-[5px] border-gold bg-gradient-to-r from-brand to-action px-6 py-6 text-white shadow-soft md:px-8;
+  }
+  /* Trama de puntos sobre la cabecera, como la portada de Red Alumni. */
+  .repo-course-heading::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.16;
+    background-image: radial-gradient(circle at 1px 1px, #fff 1.4px, transparent 1.6px);
+    background-size: 22px 22px;
+    mask-image: linear-gradient(100deg, transparent 42%, #000 100%);
+  }
+  .repo-course-heading > * {
+    @apply relative z-[1];
+  }
+  /* Chevrón propio en los desplegables, como Red Alumni. */
+  .repo-select-field select,
+  .repo-form-field select,
+  .repo-table-select,
+  .repo-search-picker__inputs select {
+    appearance: none;
+    padding-right: 42px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='m5 7.5 5 5 5-5' fill='none' stroke='%23292d32' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 18px;
+  }
+  .repo-escudo {
+    @apply h-14 w-auto flex-none object-contain md:h-[76px];
   }
   .repo-title-line {
     @apply mb-3 flex flex-wrap items-center gap-3;
   }
   .repo-title-line h1 {
-    @apply text-2xl font-bold md:text-3xl;
+    @apply text-2xl font-extrabold leading-tight tracking-[-0.015em] md:text-[30px];
   }
   .repo-title-line span {
-    @apply border-l border-slate-700 pl-3 text-sm font-medium;
+    @apply rounded-full bg-gold px-3 py-0.5 text-xs font-bold text-ink;
   }
   .repo-course-heading > div > p {
-    @apply mb-2 text-sm;
+    @apply mb-1 text-sm text-white;
   }
   .repo-course-description {
-    @apply mt-5 max-w-2xl text-slate-600;
+    @apply mt-4 max-w-3xl text-white;
   }
   .repo-block-select {
     @apply w-full self-center sm:w-80;
   }
   .repo-weeks-heading {
-    @apply flex items-center justify-between border-b border-slate-200 py-3;
+    @apply mt-6 flex items-center justify-between gap-4 py-3;
   }
   .repo-weeks-heading h2 {
-    @apply text-sm font-bold;
+    @apply border-l-4 border-gold pl-3 text-lg font-bold text-brand;
   }
   .repo-weeks-heading p {
-    @apply mt-1 text-xs text-slate-500;
+    @apply mt-1 pl-4 text-xs text-gris-500;
   }
   .repo-outline-button {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded border border-slate-400 bg-white px-4 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] border border-line bg-white px-4 text-sm font-semibold text-brand transition hover:-translate-y-px hover:border-action hover:bg-cream hover:text-action disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
   }
   .repo-outline-button svg {
     @apply h-4 w-4;
   }
   .repo-week-list {
-    @apply divide-y divide-slate-200;
+    @apply flex flex-col gap-2;
   }
   .repo-week summary {
-    @apply flex min-h-14 list-none items-center gap-3 rounded bg-slate-100 px-4 text-sm font-medium;
+    @apply flex min-h-14 list-none items-center gap-3 rounded-[10px] border border-line border-l-4 border-l-transparent bg-cream px-4 text-sm font-bold text-brand transition hover:border-l-gold;
   }
   .repo-week summary > span:first-child {
     @apply flex min-w-0 flex-1 flex-col gap-0.5;
   }
   .repo-week summary small {
-    @apply text-xs font-normal text-slate-500;
+    @apply text-xs font-normal text-gris-500;
   }
   .repo-week-lock {
-    @apply inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-[0.7rem] font-semibold text-slate-600;
+    @apply inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[0.7rem] font-semibold text-gris-700;
   }
   .repo-week-lock svg {
     @apply h-3.5 w-3.5;
@@ -360,172 +398,172 @@
     transform: rotate(180deg);
   }
   .repo-week__content {
-    @apply pb-5;
+    @apply pb-3;
   }
   .repo-week-topic {
-    @apply min-w-0 flex-1 text-sm text-slate-600;
+    @apply min-w-0 flex-1 text-sm text-gris-700;
   }
   .repo-week-topic--empty {
-    @apply italic text-slate-400;
+    @apply italic text-gris-400;
   }
   .repo-week-toolbar {
-    @apply grid gap-3 border-b border-slate-200 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center;
+    @apply grid gap-3 border-b border-line px-4 py-3 md:grid-cols-[1fr_auto] md:items-center;
   }
   .repo-week-actions {
     @apply flex flex-wrap items-center gap-4;
   }
   .repo-muted-message {
-    @apply px-4 py-8 text-center text-sm text-slate-500;
+    @apply px-4 py-8 text-center text-sm text-gris-500;
   }
   .repo-material-row {
-    @apply grid gap-4 border-b border-slate-200 px-4 py-4 md:grid-cols-[1fr_auto] md:items-center;
+    @apply grid gap-4 border-b border-line px-4 py-4 last:border-b-0 md:grid-cols-[1fr_auto] md:items-center;
   }
   .repo-material-kind {
-    @apply mb-2 text-sm text-slate-700;
+    @apply mb-2 inline-block rounded-full bg-cream px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.04em] text-brand;
   }
   .repo-material-row__main > button {
-    @apply text-left text-sm font-semibold hover:text-emerald-700 hover:underline;
+    @apply block text-left text-[15px] font-bold text-action hover:underline;
   }
   .repo-search-picker {
     @apply flex flex-col gap-2;
   }
   .repo-search-picker__label {
-    @apply text-sm font-medium text-slate-800;
+    @apply text-[12.5px] font-semibold text-gris-700;
   }
   .repo-search-picker__inputs {
     @apply flex flex-col gap-2 sm:flex-row;
   }
   .repo-search-picker__inputs select {
-    @apply h-10 rounded border border-slate-300 bg-white px-3 text-sm sm:w-48;
+    @apply h-11 rounded-[10px] border border-line bg-white px-3 text-sm sm:w-48;
   }
   .repo-search-picker__inputs input {
-    @apply h-10 min-w-0 flex-1 rounded border border-slate-300 bg-white px-3 text-sm;
+    @apply h-11 min-w-0 flex-1 rounded-[10px] border border-line bg-white px-3 text-sm focus:border-action focus:outline-none focus:ring-[3px] focus:ring-brand-100;
   }
   .repo-search-picker__results {
-    @apply max-h-64 overflow-y-auto rounded border border-slate-200 bg-white;
+    @apply max-h-64 overflow-y-auto rounded-[10px] border border-line bg-white;
   }
   .repo-search-picker__results li + li {
-    @apply border-t border-slate-100;
+    @apply border-t border-line;
   }
   .repo-search-picker__results button {
-    @apply flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent;
+    @apply flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-cream focus-visible:bg-cream focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent;
   }
   .repo-search-picker__results strong {
-    @apply text-sm font-medium text-slate-900;
+    @apply text-sm font-medium text-ink;
   }
   .repo-search-picker__results small,
   .repo-search-picker__selected small {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-gris-500;
   }
   .repo-search-picker__note {
-    @apply px-3 py-2 text-sm text-slate-500;
+    @apply px-3 py-2 text-sm text-gris-500;
   }
   .repo-search-picker > small {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-gris-500;
   }
   .repo-search-picker__selected {
-    @apply flex items-center justify-between gap-3 rounded border border-emerald-700 bg-emerald-50 px-3 py-2;
+    @apply flex items-center justify-between gap-3 rounded-[10px] border border-action bg-brand-100 px-3 py-2;
   }
   .repo-search-picker__selected > div {
     @apply flex flex-col gap-0.5;
   }
   .repo-search-picker__selected strong {
-    @apply text-sm font-semibold text-slate-900;
+    @apply text-sm font-semibold text-ink;
   }
   .repo-search-picker__selected button {
-    @apply inline-flex shrink-0 items-center gap-1 text-sm text-slate-600 hover:text-slate-900;
+    @apply inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-action hover:text-action-700;
   }
   .repo-pagination {
-    @apply mt-8 flex flex-col items-center gap-3 text-sm text-slate-600;
+    @apply mt-8 flex flex-col items-center gap-3 text-[12.5px] text-gris-500;
   }
   .repo-pagination__pages {
     @apply flex flex-wrap items-center justify-center gap-1;
   }
   .repo-pagination__pages button {
-    @apply inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-emerald-700 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-[8px] border border-line bg-white px-3 text-[13px] font-semibold text-brand transition hover:border-action hover:bg-cream disabled:cursor-not-allowed disabled:opacity-40;
   }
   .repo-pagination__pages button svg {
     @apply h-4 w-4;
   }
   .repo-pagination__pages .repo-pagination__current {
-    @apply border-emerald-700 bg-emerald-700 text-white hover:text-white;
+    @apply border-action bg-action text-white shadow-action hover:bg-action hover:text-white;
   }
   .repo-pagination__pages span {
-    @apply px-1 text-slate-400;
+    @apply px-1 text-gris-400;
   }
   .repo-material-description {
-    @apply mt-1 whitespace-pre-line text-sm text-slate-700;
+    @apply mt-1 whitespace-pre-line text-sm text-gris-700;
   }
   .repo-material-meta {
-    @apply mt-2 text-xs text-slate-500;
+    @apply mt-2 text-[12.5px] text-gris-500;
   }
   .repo-material-actions {
     @apply flex items-center gap-3;
   }
   .repo-text-button {
-    @apply px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:underline;
+    @apply rounded-[9px] px-3 py-2 text-[13px] font-semibold text-brand hover:bg-cream hover:text-action;
   }
   .repo-text-button--danger {
-    @apply text-red-700;
+    @apply text-danger-600 hover:bg-danger-50 hover:text-danger-600;
   }
   .repo-add-material {
     @apply mx-auto mt-4 flex;
   }
 
   .repo-material-dialog {
-    @apply max-h-[90vh] max-w-xl overflow-y-auto rounded-3xl border-0 p-6 sm:p-8;
+    @apply max-h-[90vh] max-w-xl overflow-y-auto rounded-[18px] border-0 p-6 shadow-lifted sm:p-[26px];
   }
   .repo-form-field {
     @apply flex w-full max-w-xl flex-col gap-1.5;
   }
   .repo-form-field > span,
   .repo-upload-label {
-    @apply text-sm font-medium text-slate-800;
+    @apply text-[12.5px] font-semibold text-gris-700;
   }
   .repo-form-field input,
   .repo-form-field select,
   .repo-form-field textarea {
-    @apply h-12 w-full rounded-lg border border-slate-400 bg-white px-4 outline-none transition focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700;
+    @apply h-11 w-full rounded-[10px] border border-line bg-white px-[13px] text-sm text-ink outline-none transition focus:border-action focus:ring-[3px] focus:ring-brand-100;
   }
   .repo-form-field textarea {
     @apply h-auto min-h-28 resize-y py-3;
   }
   .repo-form-field input:disabled {
-    @apply cursor-not-allowed bg-slate-100 text-slate-500;
+    @apply cursor-not-allowed bg-cream text-gris-500;
   }
   .repo-form-field small {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-gris-400;
   }
   .repo-form-field--wide {
     @apply max-w-3xl;
   }
   .repo-form-hint {
-    @apply -mt-2 max-w-3xl text-xs leading-relaxed text-slate-500;
+    @apply -mt-2 max-w-3xl text-xs leading-relaxed text-gris-500;
   }
   .repo-dropzone {
-    @apply mt-2 flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 p-6 text-center transition hover:border-emerald-600 hover:bg-emerald-50/30;
+    @apply mt-2 flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-[14px] border border-dashed border-line bg-cream/50 p-6 text-center transition hover:border-action hover:bg-cream;
   }
   .repo-dropzone svg {
-    @apply text-emerald-700;
+    @apply text-action;
   }
   .repo-dropzone strong {
     @apply text-sm font-medium;
   }
   .repo-dropzone span {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-gris-500;
   }
   .repo-dropzone input {
     @apply sr-only;
   }
   .repo-primary-button {
-    @apply inline-flex h-11 items-center justify-center rounded-md bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300;
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-[10px] bg-action px-[18px] text-sm font-semibold text-white shadow-action transition hover:-translate-y-px hover:bg-action-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none disabled:hover:translate-y-0;
   }
   .repo-danger-button {
-    @apply inline-flex h-10 items-center justify-center rounded-md bg-red-700 px-5 text-sm font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300;
+    @apply inline-flex h-10 items-center justify-center rounded-[10px] bg-danger-600 px-5 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300;
   }
   .repo-confirm-dialog,
   .repo-maint-dialog {
-    @apply max-h-[90vh] max-w-xl overflow-y-auto rounded-lg border-slate-200 bg-white;
+    @apply max-h-[90vh] max-w-xl overflow-y-auto rounded-[18px] border-0 bg-white shadow-lifted;
   }
   .repo-dialog-footer {
     @apply mt-2 gap-3;
@@ -538,13 +576,13 @@
     @apply grid gap-8 md:grid-cols-[190px_1fr] lg:gap-14;
   }
   .repo-maint-sidebar {
-    @apply flex h-fit flex-row overflow-x-auto rounded-xl bg-slate-200 py-4 md:min-h-96 md:flex-col;
+    @apply flex h-fit flex-row gap-1 overflow-x-auto rounded-[14px] border border-line bg-white p-3 shadow-soft md:min-h-96 md:flex-col;
   }
   .repo-maint-sidebar button {
-    @apply min-w-32 px-7 py-3 text-left text-sm font-medium hover:bg-white/60;
+    @apply min-w-32 rounded-[11px] px-3.5 py-2.5 text-left text-[14.5px] font-semibold text-gris-700 transition hover:bg-cream hover:text-action;
   }
   .repo-maint-sidebar button.active {
-    @apply bg-white text-emerald-800;
+    @apply bg-action text-white hover:bg-action hover:text-white;
   }
   .repo-maint-content {
     @apply min-w-0;
@@ -553,26 +591,26 @@
     @apply mb-8 flex min-h-10 items-center justify-between gap-4;
   }
   .repo-section-heading h2 {
-    @apply text-xl font-bold;
+    @apply text-[22px] font-bold text-brand;
   }
   .repo-blocks-heading {
     @apply items-start;
   }
   .repo-blocks-heading p,
   .repo-config-section__heading p {
-    @apply mt-1 text-sm text-slate-600;
+    @apply mt-1 text-sm text-gris-500;
   }
   .repo-course-config-select {
     @apply mb-8 max-w-3xl;
   }
   .repo-config-section {
-    @apply mb-10 border-t border-slate-200 pt-7;
+    @apply mb-10 border-t border-line pt-7;
   }
   .repo-config-section__heading {
     @apply mb-5 flex items-start justify-between gap-4;
   }
   .repo-config-section__heading h3 {
-    @apply text-lg font-bold text-slate-900;
+    @apply text-lg font-bold text-brand;
   }
   .repo-inline-assignment {
     @apply flex max-w-3xl flex-col items-stretch gap-3 sm:flex-row sm:items-end;
@@ -584,58 +622,58 @@
     @apply grid gap-5 xl:grid-cols-2;
   }
   .repo-block-config-card {
-    @apply flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5;
+    @apply flex flex-col gap-4 rounded-[14px] border border-line bg-white p-5 shadow-soft;
   }
   .repo-block-config-card--theory {
-    @apply border-emerald-200 bg-emerald-50;
+    @apply border-gold-200 border-l-[5px] border-l-gold bg-cream;
   }
   .repo-block-config-card__title {
     @apply flex items-start justify-between gap-4;
   }
   .repo-block-config-card__title > div > span {
-    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.12em] text-action;
   }
   .repo-block-config-card__title h4 {
-    @apply mt-1 text-lg font-bold;
+    @apply mt-1 text-lg font-bold text-brand;
   }
   .repo-block-config-card dl {
     @apply grid gap-4 sm:grid-cols-2;
   }
   .repo-block-config-card dt {
-    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.12em] text-action;
   }
   .repo-block-config-card dd {
     @apply mt-1 text-sm font-medium;
   }
   .repo-table-select {
-    @apply min-w-52 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:cursor-wait disabled:opacity-60;
+    @apply min-w-52 rounded-[10px] border border-line bg-white px-3 py-2 text-sm disabled:cursor-wait disabled:opacity-60;
   }
   .repo-back-button {
-    @apply mb-6 text-sm font-medium hover:text-emerald-700 hover:underline;
+    @apply mb-6 inline-flex items-center gap-1 text-sm font-semibold text-action hover:underline;
   }
   .repo-table-filters {
     @apply mb-14 grid max-w-4xl items-end gap-5 sm:grid-cols-2 lg:grid-cols-3;
   }
   .repo-data-table-wrap {
-    @apply w-full overflow-x-auto;
+    @apply w-full overflow-x-auto rounded-[14px] border border-line bg-white shadow-soft;
   }
   .repo-data-table {
     @apply w-full min-w-[620px] border-collapse text-left text-sm;
   }
   .repo-data-table th {
-    @apply px-5 py-4 font-semibold;
+    @apply bg-cream px-5 py-3.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-action;
   }
   .repo-data-table td {
-    @apply px-5 py-3.5;
+    @apply border-t border-line px-5 py-3.5;
   }
   .repo-data-table tbody tr:nth-child(odd) {
-    @apply bg-slate-100;
+    @apply bg-white;
   }
   .repo-data-table tbody tr:hover {
-    @apply bg-emerald-50;
+    @apply bg-cream/60;
   }
   .repo-table-action {
-    @apply inline-flex items-center gap-2 whitespace-nowrap text-xs font-semibold text-emerald-800 hover:underline disabled:cursor-wait disabled:opacity-50;
+    @apply inline-flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold text-action hover:underline disabled:cursor-wait disabled:opacity-50;
   }
   .repo-table-actions {
     @apply flex flex-col items-start gap-2 lg:flex-row lg:items-center lg:gap-4;
@@ -644,16 +682,16 @@
     @apply h-4 w-4;
   }
   .repo-table-action--danger {
-    @apply text-red-700;
+    @apply text-danger-600;
   }
   .repo-status {
-    @apply inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700;
+    @apply inline-flex rounded-full border border-line bg-white px-3 py-1 text-[12.5px] font-semibold text-gris-700;
   }
   .repo-status--active {
-    @apply bg-emerald-100 text-emerald-900;
+    @apply border-brand-100 bg-brand-100 text-action;
   }
   .repo-status--warning {
-    @apply items-center gap-1 bg-amber-100 text-amber-900;
+    @apply items-center gap-1 border-gold-200 bg-gold-100 text-gold-700;
   }
   .repo-status--warning svg {
     @apply h-3.5 w-3.5;
@@ -662,31 +700,31 @@
     @apply mb-4 flex flex-col gap-3;
   }
   .repo-block-tabs {
-    @apply flex flex-wrap gap-1 border-b border-slate-200;
+    @apply flex flex-wrap gap-1.5 border-b-2 border-line;
   }
   .repo-block-tabs button {
-    @apply -mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900;
+    @apply -mb-0.5 inline-flex items-center gap-2 border-b-[3px] border-transparent px-4 py-2.5 text-sm font-semibold text-gris-500 hover:text-brand;
   }
   .repo-block-tabs button.active {
-    @apply border-emerald-700 text-emerald-900;
+    @apply border-gold text-brand;
   }
   .repo-block-tabs button span {
-    @apply rounded-full bg-slate-100 px-2 text-xs text-slate-600;
+    @apply rounded-full bg-cream px-2 text-xs text-brand;
   }
   .repo-course-card__blocks {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-gris-500;
   }
   .repo-program-checks {
     @apply flex flex-col gap-2 border-0 p-0;
   }
   .repo-program-checks legend {
-    @apply text-sm font-medium text-slate-800;
+    @apply text-[12.5px] font-semibold text-gris-700;
   }
   .repo-program-checks > div {
     @apply grid gap-1 sm:grid-cols-2;
   }
   .repo-program-checks label {
-    @apply flex items-center gap-2 text-sm text-slate-700;
+    @apply flex items-center gap-2 text-[13px] text-gris-700;
   }
   .repo-chip-list {
     @apply flex flex-wrap gap-2;
@@ -695,25 +733,25 @@
     @apply mt-5;
   }
   .repo-block-section h4 {
-    @apply mb-2 text-sm font-semibold text-slate-700;
+    @apply mb-2 text-sm font-semibold text-gris-700;
   }
   .repo-block-access-note {
-    @apply mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600;
+    @apply mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[9px] border border-brand-100 bg-white px-4 py-3 text-sm text-gris-700;
   }
   .repo-block-access-note strong {
-    @apply text-slate-900;
+    @apply text-ink;
   }
   .repo-block-fact {
-    @apply flex flex-col gap-0.5 border-r border-slate-200 pr-4 last:border-r-0;
+    @apply flex flex-col gap-0.5 border-r border-brand-100 pr-4 last:border-r-0;
   }
   .repo-block-fact > span {
-    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.12em] text-action;
   }
   .repo-toggle-field {
-    @apply flex items-center gap-3 text-sm font-medium text-slate-800;
+    @apply flex items-center gap-3 text-[13.5px] font-semibold text-gris-700;
   }
   .repo-toggle-field input {
-    @apply h-5 w-5 accent-emerald-700;
+    @apply h-5 w-5 accent-action;
   }
   .repo-maint-form {
     @apply flex flex-col gap-7 pb-10;
@@ -725,13 +763,13 @@
     @apply flex flex-col gap-3;
   }
   .repo-checkboxes legend {
-    @apply mb-3 text-sm font-medium;
+    @apply mb-3 text-[12.5px] font-semibold text-gris-700;
   }
   .repo-checkboxes label {
-    @apply flex items-center gap-3 text-sm;
+    @apply flex items-center gap-3 text-[13px] text-gris-700;
   }
   .repo-checkboxes input {
-    @apply h-6 w-6 accent-emerald-700;
+    @apply h-[18px] w-[18px] accent-action;
   }
 }
 

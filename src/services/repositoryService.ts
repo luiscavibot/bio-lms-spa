@@ -203,6 +203,20 @@ export interface FileResource {
   sizeBytes: number;
 }
 
+export type FileDisposition = "inline" | "attachment";
+
+/** Signed access to a stored file; `inline` only when the browser can show it. */
+export interface FileAccess {
+  url: string;
+  expiresIn: number;
+  disposition: FileDisposition;
+  fileName: string;
+  mimeType: string;
+}
+
+/** Links carry only the external URL; files add how the signed URL serves them. */
+export type MaterialAccess = { url: string } & Partial<Omit<FileAccess, "url">>;
+
 export interface Material {
   id: number;
   title: string;
@@ -251,9 +265,9 @@ export const repositoryService = {
       `${API}/course-offerings/facets${queryString(filters)}`,
     );
   },
-  getSyllabusAccess(blockId: number) {
-    return httpClient.get<{ url: string; expiresIn?: number }>(
-      `${API}/blocks/${blockId}/syllabus/access`,
+  getSyllabusAccess(blockId: number, disposition: FileDisposition = "attachment") {
+    return httpClient.get<FileAccess>(
+      `${API}/blocks/${blockId}/syllabus/access?disposition=${disposition}`,
     );
   },
   getOffering(id: number) {
@@ -585,9 +599,10 @@ export const repositoryService = {
   deleteMaterial(id: number) {
     return httpClient.delete<void>(`${API}/materials/${id}`);
   },
-  getMaterialAccess(id: number) {
-    return httpClient.get<{ url: string; expiresIn?: number }>(
-      `${API}/materials/${id}/access`,
+  /** `inline` asks to view the file; links answer with the external URL only. */
+  getMaterialAccess(id: number, disposition: FileDisposition = "attachment") {
+    return httpClient.get<MaterialAccess>(
+      `${API}/materials/${id}/access?disposition=${disposition}`,
     );
   },
 };

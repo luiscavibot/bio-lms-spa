@@ -11,10 +11,10 @@ import type { OfferingBlock } from "@/services/repositoryService";
 
 // Utility classes, so they replace the Select defaults instead of losing to them.
 const TRIGGER =
-  "h-10 w-full self-end rounded-lg border-slate-300 bg-white px-3 text-left font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100 focus:ring-offset-0 sm:w-80 [&>svg]:text-slate-500 [&>svg]:opacity-100";
-const LIST = "max-h-80 rounded-lg border-slate-200 bg-white p-1 text-slate-800 shadow-lg";
+  "h-11 w-full self-end rounded-[10px] border-line bg-white px-3 text-left font-semibold text-ink shadow-none transition-colors hover:border-action focus:border-action focus:ring-[3px] focus:ring-brand-100 focus:ring-offset-0 sm:w-80 [&>svg]:text-slate-500 [&>svg]:opacity-100";
+const LIST = "max-h-80 rounded-[14px] border-line bg-white p-1 text-ink shadow-lifted";
 const OPTION =
-  "cursor-pointer rounded-md py-2 pl-8 pr-3 text-slate-700 focus:bg-emerald-50 focus:text-emerald-900 data-[state=checked]:font-semibold data-[state=checked]:text-emerald-900 [&_svg]:text-emerald-700";
+  "cursor-pointer rounded-md py-2 pl-8 pr-3 text-slate-700 focus:bg-cream focus:text-action data-[state=checked]:font-semibold data-[state=checked]:text-brand-800 [&_svg]:text-action";
 
 /**
  * Chooses a block of an offering: one tab per type present (with how many blocks it has) and,

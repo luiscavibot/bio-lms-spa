@@ -58,7 +58,7 @@ export function PasswordChangeModal({
 			<div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
 				<div className="flex items-center justify-between mb-6">
 					<div className="flex items-center gap-2">
-						<Lock className="h-5 w-5 text-[#228665]" />
+						<Lock className="h-5 w-5 text-action" />
 						<h2 className="text-xl font-semibold text-gray-900">
 							Cambiar Contraseña
 						</h2>
@@ -197,7 +197,7 @@ export function PasswordChangeModal({
 					<Button
 						type="submit"
 						disabled={!canSubmit}
-						className="w-full bg-[#228665] hover:bg-[#1a6b4f]"
+						className="w-full bg-action hover:bg-action-600"
 					>
 						{isLoading ? (
 							<div className="flex items-center justify-center gap-2">
