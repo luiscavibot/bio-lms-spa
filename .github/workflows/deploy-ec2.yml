@@ -1,0 +1,100 @@
+name: Deploy EC2
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ec2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_AWS_REGION: ${{ vars.VITE_AWS_REGION }}
+      VITE_AWS_USER_POOL_ID: ${{ vars.VITE_AWS_USER_POOL_ID }}
+      VITE_AWS_USER_POOL_CLIENT_ID: ${{ vars.VITE_AWS_USER_POOL_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Comprobar variables de repositorio
+        run: |
+          for v in VITE_BASE_PATH VITE_API_URL VITE_AWS_REGION VITE_AWS_USER_POOL_ID VITE_AWS_USER_POOL_CLIENT_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Falta la variable de repositorio $v"; exit 1; fi
+          done
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Verificar la ruta base en dist/index.html
+        run: grep -qF "${VITE_BASE_PATH}assets/" dist/index.html
+
+      - name: Empaquetar artefacto
+        run: tar -czf artifact.tgz -C dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: artifact.tgz
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: artifact
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.EC2_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.EC2_AWS_REGION }}
+
+      - name: Subir artefacto a S3
+        run: |
+          aws s3 cp artifact.tgz "s3://${{ vars.EC2_ARTIFACTS_BUCKET }}/produccion/materiales-web/${GITHUB_SHA}.tgz" --only-show-errors
+
+      - name: Desplegar vía SSM
+        run: |
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript \
+            --comment "materiales-web ${GITHUB_SHA::7}" \
+            --timeout-seconds 600 \
+            --parameters "commands=[\"/usr/local/bin/desplegar-app materiales-web ${GITHUB_SHA}\"]" \
+            --query Command.CommandId --output text)
+          echo "CommandId: $CMD_ID"
+          sleep 5
+          while true; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" \
+              --instance-id "${{ vars.EC2_INSTANCE_ID }}" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in
+              Pending|InProgress|Delayed) sleep 5 ;;
+              *) break ;;
+            esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}" --query StandardOutputContent --output text
+          aws ssm get-command-invocation --command-id "$CMD_ID" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}" --query StandardErrorContent --output text >&2
+          echo "Estado final: $STATUS"
+          [ "$STATUS" = "Success" ]
